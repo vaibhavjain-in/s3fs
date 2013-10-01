@@ -1,0 +1,386 @@
+<?php
+
+/**
+ * @file
+ * Sets up the S3FSStreamWrapper class to be used as a Drupal file system.
+ */
+
+/**
+ * The version number of the current release.
+ */
+define('S3FS_VERSION', '7.x-0.1-dev');
+
+/**
+ * Implements hook_stream_wrappers().
+ *
+ * Create a stream wrapper for S3.
+ */
+function s3fs_stream_wrappers() {
+  return array(
+    's3' => array(
+      'name' => 'S3 File System',
+      'class' => 'S3FSStreamWrapper',
+      'description' => t('Amazon Simple Storage Service'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function s3fs_menu() {
+  $items = array();
+
+  $items['admin/config/media/s3fs'] = array(
+    'title' => 'S3 File System',
+    'description' => t('Configure S3 File System settings.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('s3fs_admin'),
+    'access arguments' => array('administer s3fs'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_permission().
+ */
+function s3fs_permission() {
+  return array(
+    'administer s3fs' => array(
+      'title' => t('Administer S3 File System'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_help().
+ */
+function s3fs_help($path, $arg) {
+  switch ($path) {
+    case 'admin/config/media/s3fs':
+    if (module_exists('awssdk_ui')) {
+      return '<p>' . t('Amazon Web Services authentication can be configured on the <a href="@awssdk_config">AWS SDK configuration page</a>.',
+        array('@awssdk_config' => url('admin/config/media/awssdk'))) . '</p>';
+    }
+    else {
+      return '<p>' . t('To configure your Amazon Web Services credentials, enable the \'AWS SDK for PHP UI\' module,
+        or define those settings in the $conf array in settings.php.') . '</p>';
+    }
+  }
+}
+
+/**
+ * Implements hook_admin().
+ */
+function s3fs_admin() {
+  $form = array();
+
+  $form['s3fs_bucket'] = array(
+    '#type'           => 'textfield',
+    '#title'          => t('S3 Bucket Name'),
+    '#default_value'  => variable_get('s3fs_bucket', ''),
+    '#required'       => TRUE,
+  );
+
+  $form['s3fs_cname'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Enable CNAME'),
+    '#description'    => t('Serve files from a custom domain by using an appropriately named bucket, e.g. "mybucket.mydomain.com".'),
+    '#default_value'  => variable_get('s3fs_cname', 0),
+  );
+
+  $form['s3fs_domain'] = array(
+    '#type'           => 'textfield',
+    '#title'          => t('CDN Domain Name'),
+    '#description'    => t('If serving files from CloudFront, the bucket name can differ from the domain name.'),
+    '#default_value'  => variable_get('s3fs_domain', ''),
+    '#states'         => array(
+      'visible' => array(
+        ':input[id=edit-s3fs-cname]' => array('checked' => TRUE),
+      )
+    ),
+  );
+
+  $form['s3fs_torrents'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Torrents'),
+    '#description' => t('A list of paths that should be delivered through a torrent url. Enter one value per line e.g. "mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.', array('@preg_match' => 'http://php.net/preg_match')),
+    '#default_value' => variable_get('s3fs_torrents', ''),
+    '#rows' => 10,
+  );
+
+  $form['s3fs_presigned_urls'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Presigned URLs'),
+    '#description' => t('A list of timeouts and paths that should be delivered through a presigned url. Enter one value per line, in the format timeout|path. e.g. "60|mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>. If no timeout is provided, it defaults to 60 seconds.', array('@preg_match' => 'http://php.net/preg_match')),
+    '#default_value' => variable_get('s3fs_presigned_urls', ''),
+    '#rows' => 10,
+  );
+
+  $form['s3fs_saveas'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Force Save As'),
+    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header. Prevents autoplay of media. Enter one value per line. e.g. "mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>. <b>Files must use a presigned url to use this feature.</b>', array('@preg_match' => 'http://php.net/preg_match')),
+    '#default_value' => variable_get('s3fs_saveas', ''),
+    '#rows' => 10,
+  );
+
+  $form['s3fs_refresh_cache'] = array(
+    '#type' => 'fieldset',
+    '#description' => t("The file metadata cache keeps track of every file that S3 File System writes to (and deletes from) the S3 bucket, so that queries for data about those files (checks for existence, filetype, etc.) don't have to hit S3. This speeds up many operations, most noticeably anything related to images and their derivatives."),
+    '#title' => t('File Metadata Cache'),
+  );
+
+  $form['s3fs_refresh_cache']['refresh'] = array(
+    '#type' => 'submit',
+    '#suffix' => '<div class="refresh">' . t("This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket, and saves it to the database. This may take a while for buckets with many thousands of files. <br>It should only be necessary to use this button if you've just installed S3 File System and you need to cache all the pre-existing files in your bucket, or if you need to restore your metadata cache from scratch for some other reason.") . '</div>',
+    '#value' => t('Refresh file metadata cache'),
+    '#submit' => array('s3fs_refresh_cache_submit'),
+  );
+  // Push the button closer to its own description, rather than the fieldset's description, and push the disable checkbox away from the button description.
+  $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array('#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'));
+
+  $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Ignore the file metadata cache'),
+    '#description'   => t("If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache. This will make all filesystem reads hit S3 instead of the cache. Please be aware that this will cause an enormous performance loss, and should never be enabled on a production site."),
+    '#default_value' => variable_get('s3fs_ignore_cache', 0),
+  );
+  
+  return system_settings_form($form);
+}
+
+function s3fs_admin_validate($form, &$form_state) {
+  _s3fs_validate_config($form_state['values']['s3fs_bucket']);
+}
+
+/**
+ * Submit callback for the refresh file metadata cache button.
+ */
+function s3fs_refresh_cache_submit($form, &$form_state) {
+  _s3fs_refresh_cache($form_state['values']['s3fs_bucket']);
+}
+
+/**
+ * Checks all the configuration options to ensure that they're valid.
+ *
+ * @return
+ *   TRUE if config is good to go, otherwise FALSE.
+ */
+function _s3fs_validate_config($bucket) {
+  if (!libraries_load('awssdk')) {
+    form_set_error('s3fs_bucket', t('Unable to load the AWS SDK. Please ensure that you have installed the library correctly and configured your S3 credentials.'));
+    return FALSE;
+  }
+  else if (!class_exists('AmazonS3')) {
+    form_set_error('s3fs_bucket', t('Cannot load AmazonS3 class. Please ensure that the awssdk library is installed correctly.'));
+    return FALSE;
+  }
+  else {
+    try {
+      $s3 = new AmazonS3();
+      // Test the connection to S3.
+      $user_id = $s3->get_canonical_user_id();
+      if (!$user_id['id']) {
+        form_set_error('s3fs_bucket', t('The S3 access credentials are invalid.'));
+        return FALSE;
+      }
+      else if (!$s3->if_bucket_exists($bucket)) {
+        form_set_error('s3fs_bucket', t('The bucket "@bucket" does not exist.', array('@bucket' => $bucket)));
+        return FALSE;
+      }
+    }
+    catch (RequestCore_Exception $e){
+      if (strstr($e->getMessage(), 'SSL certificate problem')) {
+        form_set_error('s3fs_bucket', t('There was a problem with the SSL certificate. Try setting AWS_CERTIFICATE_AUTHORITY to true in "libraries/awssdk/config.inc.php". You may also have a curl library (e.g. the default shipped with MAMP) that does not contain trust certificates for the major authorities.'));
+        return FALSE;
+      }
+      else {
+        form_set_error('s3fs_bucket', t('There was a problem connecting to S3: @error', array('@error' => $e->getMessage())));
+        return FALSE;
+      }
+    }
+    catch (Exception $e) {
+      form_set_error('s3fs_bucket', t('There was a problem using S3: @error', array('@error' => $e->getMessage())));
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
+/**
+ * Calls AmazonS3::list_objects() enough times to get all the files in the
+ * specified bucket (the API returns at most 1000 per call), and stores their
+ * metadata in the cache table.
+ *
+ * Once the file metadata has been created, the the folder metadata will
+ * also be refreshed.
+ */
+function _s3fs_refresh_cache($bucket) {
+  // Don't try to do anything if our configuration settings are invalid.
+  if (!_s3fs_validate_config($bucket)) {
+    return;
+  }
+  $s3 = new AmazonS3();
+  $metadata_fields = array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid');
+  
+  // Clear the files out of the metadata table, so we can recreate them from scratch.
+  // Directories are not erased because if the directory doesn't have any files in it,
+  // it wouldn't be restored in the last step of this function.
+  db_delete('s3fs_file')
+    ->condition('dir', 0, '=')
+    ->execute();
+  
+  $last_key = NULL;
+  do {
+    $args = array();
+    if ($last_key) {
+      $args['marker'] = $last_key;
+    }
+    
+    $response = $s3->list_objects($bucket, $args);
+    if (!$response->isOK()) {
+      drupal_set_message(t('Metadata cache refresh aborted. A @code error occurred: @error.', array('@code' => $response->status, '@error' => $response->body->Message)), 'error');
+      return;
+    }
+    $file_metadata_list = array();
+    $folder_metadata_list = array();
+    foreach ($response->body->Contents as $object) {
+      $s3_metadata = _s3fs_s3_object_to_s3_metadata($object);
+      $uri = "s3://{$s3_metadata['Key']}";
+      $is_dir = $uri[strlen($uri)-1] == '/';
+      
+      if ($is_dir) {
+        // There may be files in the S3 bucket pretending to be folders, by
+        // having a trailing '/'. Add those to the cache as directories.
+        $folder_metadata_list[] = _s3fs_format_metadata(rtrim($uri, '/'), array());
+      }
+      else {
+        $file_metadata_list[] = _s3fs_format_metadata($uri, $s3_metadata);
+      }
+      
+      // Keep track of the last key in the response, so that if we need to get
+      // another page of responses, we know which filename to use as the 'marker'.
+      $last_key = $s3_metadata['Key'];
+    }
+    
+    // Re-populate the file metadata table with the current page's file results.
+    $insert_query = db_insert('s3fs_file')
+      ->fields($metadata_fields);
+    foreach ($file_metadata_list as $metadata) {
+      $insert_query->values($metadata);
+    }
+    try {
+      $insert_query->execute();
+    }
+    catch (PDOException $e) {
+      if ($e->getCode() == 23000) {
+        // This shouldn't ever happen!!!
+        // I originally coded this error correction for the case when there are two files in S3 with the same name, but
+        // different capitalization. By default, MySQL doesn't allow string which are case-insensitively identical, but
+        // I found out how to get around that (see s3fs_update_7201()).
+        // Just in case this does ever happen, though, the best we can do is redo each insert one at a time, catching
+        // and logging the individual failures.
+        foreach ($file_metadata_list as $metadata) {
+          try {
+            db_insert('s3fs_file')
+              ->fields($metadata_fields)
+              ->values($metadata)
+              ->execute();
+          }
+          catch (PDOException $e) {
+            drupal_set_message(t("The file @uri has the same name as another file in S3, but with different capitalization.
+              If you haven't done so already, be sure to run the database update script (drush updb).
+              If you've already done that, something is very wrong, and you should post a ticket to the S3 File System issue queue.", array('@uri' => $metadata['uri'])), 'warning');
+          }
+        }
+      }
+      else {
+        // Other exceptions are unexpected, and should be percolated as normal.
+        throw $e;
+      }
+    }
+    
+    // Now add the folders, which we need to use db_merge for because they might
+    // still exist from a previous cache refresh.
+    foreach ($folder_metadata_list as $metadata) {
+      db_merge('s3fs_file')
+        ->key(array('uri' => $metadata['uri']))
+        ->fields($metadata)
+        ->execute();
+    }
+  } while ($response->body->IsTruncated->to_string() == 'true');
+  
+  // Rebuild the list of directories by looping through all the file URIs to
+  // to figure out what their parent directories are.
+  $uris = db_query('SELECT uri FROM {s3fs_file} WHERE dir = 0')->fetchAll(PDO::FETCH_COLUMN, 0);
+  $folders = array();
+  foreach ($uris as $uri) {
+    // Record each file's parent directory name, unless it's the root directory.
+    $dirname = drupal_dirname($uri);
+    if ($dirname && $dirname != 's3://') {
+      $folders[$dirname] = $dirname;
+    }
+  }
+  $stream = new S3FSStreamWrapper();
+  foreach ($folders as $folder) {
+    $stream->mkdir($folder, NULL, STREAM_MKDIR_RECURSIVE);
+  }
+  drupal_set_message(t('S3 File System cache refreshed.'));
+}
+
+/**
+ * Convert file metadata returned from S3 into an array appropriate
+ * for insertion into our file metadata cache.
+ *
+ * @param $uri
+ *   A string containing the uri of the resource to check.
+ * @param $s3_metadata
+ *   An array containing the collective metadata for the Amazon S3 object.
+ *   The caller may send an empty array here to indicate that the returned
+ *   metadata should represent a folder.
+ *
+ * @return
+ *   An array containing metadata formatted for the file metadata cache.
+ */
+function _s3fs_format_metadata($uri, $s3_metadata) {
+  $metadata = array('uri' => $uri);
+  
+  if (empty($s3_metadata)) {
+    // The caller wants directory metadata, so invent some.
+    $metadata['dir'] = 1;
+    $metadata['mode'] = 0040000; // S_IFDIR indicating directory
+    $metadata['filesize'] = 0;
+    $metadata['timestamp'] = time();
+    $metadata['uid'] = 'S3 File System';
+  }
+  else {
+    // The caller sent us some actual metadata, so this must be a file.
+    if (isset($s3_metadata['Size'])) {
+      $metadata['filesize'] = $s3_metadata['Size'];
+    }
+    if (isset($s3_metadata['LastModified'])) {
+      $metadata['timestamp'] = date('U', strtotime((string)$s3_metadata['LastModified']));
+    }
+    if (isset($s3_metadata['Owner']['ID'])) {
+      $metadata['uid'] = (string)$s3_metadata['Owner']['ID'];
+    }
+    $metadata['dir'] = 0;
+    $metadata['mode'] = 0100000; // S_IFREG indicating file
+  }
+  $metadata['mode'] |= 0777; // everything is writeable
+  return $metadata;
+}
+
+/**
+ * Converts objects returned by AmazonS3::get_objects() into s3 metadata arrays
+ * compatible with those returned by AmazonS3::get_object_metadata();
+ */
+function _s3fs_s3_object_to_s3_metadata($object) {
+  // This is a sloppy but effective way to do a deep conversion of an object
+  // into a multi-dimentional array, found here:
+  // http://stackoverflow.com/a/2476954/464318
+  $s3_metadata = json_decode(json_encode($object), true);
+  return $s3_metadata;
+}
