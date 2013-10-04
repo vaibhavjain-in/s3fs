@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Sets up the S3FSStreamWrapper class to be used as a Drupal file system.
+ * Sets up the S3StreamWrapper class to be used as a Drupal file system.
  */
 
 /**
@@ -19,7 +19,7 @@ function s3fs_stream_wrappers() {
   return array(
     's3' => array(
       'name' => 'S3 File System',
-      'class' => 'S3FSStreamWrapper',
+      'class' => 'S3StreamWrapper',
       'description' => t('Amazon Simple Storage Service'),
     ),
   );
@@ -323,7 +323,7 @@ function _s3fs_refresh_cache($bucket) {
       $folders[$dirname] = $dirname;
     }
   }
-  $stream = new S3FSStreamWrapper();
+  $stream = new S3StreamWrapper();
   foreach ($folders as $folder) {
     $stream->mkdir($folder, NULL, STREAM_MKDIR_RECURSIVE);
   }

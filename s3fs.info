@@ -7,4 +7,4 @@ dependencies[] = awssdk (>=5.1)
 dependencies[] = libraries (2.x)
 
 ; Includes
-files[] = S3FSStreamWrapper.inc
+files[] = S3StreamWrapper.inc

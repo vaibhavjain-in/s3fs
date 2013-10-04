@@ -7,7 +7,7 @@
  * Implements DrupalStreamWrapperInterface to provide an Amazon S3 wrapper with
  * the s3:// prefix.
  */
-class S3FStreamWrapper implements DrupalStreamWrapperInterface {
+class S3StreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
    * @var string Instance URI referenced as "s3://key"
@@ -16,7 +16,7 @@ class S3FStreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
    * @var AmazonS3 S3 client object from the AWS SDK, shared across all 
-   * instances of S3FSStreamWrapper.
+   * instances of S3StreamWrapper.
    */
   protected static $s3_client = null;
   
@@ -220,7 +220,7 @@ class S3FStreamWrapper implements DrupalStreamWrapperInterface {
     $this->saveas = $saveas;
     
     $this->constructed = TRUE;
-    $this->_test_log('S3FSStreamWrapper constructed.');
+    $this->_test_log('S3StreamWrapper constructed.');
   }
   
   /**
@@ -600,7 +600,7 @@ class S3FStreamWrapper implements DrupalStreamWrapperInterface {
       $opts = array(
         'body' => $this->buffer,
         'acl' => AmazonS3::ACL_PUBLIC,
-        'contentType' => S3FSStreamWrapper::getMimeType($this->uri),
+        'contentType' => S3StreamWrapper::getMimeType($this->uri),
       );
       $response = $this->s3->create_object($this->bucket, $this->_uri_to_s3_filename($this->uri), $opts);
       if ($response->isOK()) {
