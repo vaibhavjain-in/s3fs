@@ -15,7 +15,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   protected $uri;
   
   /**
-   * @var AmazonS3 S3 client object from the AWS SDK, shared across all 
+   * @var AmazonS3 S3 client object from the AWS SDK, shared across all
    * instances of S3StreamWrapper.
    */
   protected static $s3_client = null;
@@ -177,18 +177,20 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     }
     $this->s3 = self::$s3_client;
     
+    global $is_https;
+    $scheme = $is_https ? 'https' : 'http';
     // CNAME support for customizing S3 URLs.
     if (variable_get('s3fs_cname', FALSE)) {
       $domain = variable_get('s3fs_domain', '');
       if ($domain) {
-        $this->domain = "http://$domain";
+        $this->domain = "$scheme://$domain";
       }
       else {
-        $this->domain = "http://{$this->bucket}";
+        $this->domain = "$scheme://{$this->bucket}";
       }
     }
     else {
-      $this->domain = "http://{$this->bucket}.s3.amazonaws.com";
+      $this->domain = "$scheme://{$this->bucket}.s3.amazonaws.com";
     }
     
     // Torrent list
