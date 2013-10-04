@@ -171,7 +171,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
          $this->_test_log('Created AmazonS3 client.');
         }
         catch (Exception $e) {
-          throw new Expcetion(t('There was a problem connecting to S3: @msg', array('@msg' => $e->getMessage())));
+          throw new Exception(t('There was a problem connecting to S3: @msg', array('@msg' => $e->getMessage())));
         }
       }
     }
