@@ -4,7 +4,7 @@
 /**
  * @file
  * Tests for S3StreamWrapper and its helper functions.
- * 
+ *
  * Drupal's unit testing framework is unsuited for testing this module, because
  * it disallows access to the database. Its web testing framework is
  * somewhat unwieldy as well, since it creates a fresh drupal install to run
@@ -83,7 +83,7 @@ function upload_test($filename) {
   my_assert($url !== FALSE, __LINE__, 'file_create_url() call failed.');
   test_print('Exercising getExternalUri() for image styles.');
   $url = file_create_url('s3://styles/small_thumbnail/s3/test_image.jpg');
-  my_assert(strstr($url, '/system/files/styles') !== FALSE, __LINE__, 'A private filesystem path was not created.');
+  my_assert(strstr($url, '/s3/files/styles') !== FALSE, __LINE__, 'A private filesystem path was not created.');
   
   test_print('Exercising unlink() by moving a file.');
   $moved_uri = 's3://_s3fs_test/test_file2.jpg';

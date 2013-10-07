@@ -150,35 +150,26 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * the S3 File System admin page.
    */
   public function __construct() {
-    $this->bucket = $bucket = variable_get('s3fs_bucket', '');
-    
-    // If it hasn't already been done in this request, load the AWSSDK library
-    // and create the AmazonS3 client.
-    if (!isset(self::$s3_client)) {
-      if (!libraries_load('awssdk')) {
-        throw new Exception(t('Unable to load the AWS SDK. Please check you have installed the library correctly and configured your S3 credentials.'));
-      }
-      else if (empty($this->bucket)) {
-        throw new Exception(t('AmazonS3 bucket name not configured. Please visit the !config_page.',
-          array('!config_page' => l(t('configuration page'), '/admin/config/media/s3fs'))));
-      }
-      else {
-        try {
-         self::$s3_client = new AmazonS3();
-         // Using SSL slows down uploads significantly, but it's unsafe to disable it.
-         // I'm still looking for a better solution. -- coredumperror 2013/07/12
-         //self::$s3_client->disable_ssl();
-         $this->_test_log('Created AmazonS3 client.');
-        }
-        catch (Exception $e) {
-          throw new Exception(t('There was a problem connecting to S3: @msg', array('@msg' => $e->getMessage())));
-        }
-      }
+    $this->bucket = variable_get('s3fs_bucket', '');
+    if (empty($this->bucket)) {
+      $msg = t('Your AmazonS3 bucket name is not configured. Please visit the !config_page.',
+        array('!config_page' => l(t('configuration page'), '/admin/config/media/s3fs')));
+      watchdog('S3 File System', $msg, array(), WATCHDOG_ERROR);
+      throw new Exception($msg);
     }
-    $this->s3 = self::$s3_client;
+    
+    // Get the AmazonS3 client object.
+    $this->s3 = _s3fs_get_amazons3_client($this->bucket);
     
     global $is_https;
-    $scheme = $is_https ? 'https' : 'http';
+    if ($is_https) {
+      $scheme = 'https';
+      $this->_test_log('Using HTTPS.');
+    }
+    else {
+      $scheme = 'http';
+      $this->_test_log('Using HTTP.');
+    }
     // CNAME support for customizing S3 URLs.
     if (variable_get('s3fs_cname', FALSE)) {
       $domain = variable_get('s3fs_domain', '');
@@ -190,7 +181,12 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     else {
-      $this->domain = "$scheme://{$this->bucket}.s3.amazonaws.com";
+      if ($this->s3->path_style) {
+        $this->domain = "$scheme://s3.amazonaws.com/{$this->bucket}";
+      }
+      else {
+        $this->domain = "$scheme://{$this->bucket}.s3.amazonaws.com";
+      }
     }
     
     // Torrent list
@@ -217,9 +213,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     
     // Force "save as" list
     $saveas = explode("\n", variable_get('s3fs_saveas', ''));
-    $saveas = array_map('trim', $saveas );
-    $saveas = array_filter($saveas , 'strlen');
-    $this->saveas = $saveas;
+    $this->saveas = array_filter(array_map('trim', $saveas), 'strlen');
     
     $this->constructed = TRUE;
     $this->_test_log('S3StreamWrapper constructed.');
@@ -328,8 +322,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       return $url;
     }
     
-    $url = "{$this->domain}/$s3_filename";
-    return $url;
+    return "{$this->domain}/$s3_filename";
   }
   
   /**
