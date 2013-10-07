@@ -30,7 +30,7 @@ function s3fs_stream_wrappers() {
  */
 function s3fs_menu() {
   $items = array();
-
+  
   $items['admin/config/media/s3fs'] = array(
     'title' => 'S3 File System',
     'description' => t('Configure S3 File System settings.'),
@@ -73,8 +73,8 @@ function s3fs_help($path, $arg) {
         array('@awssdk_config' => url('admin/config/media/awssdk'))) . '</p>';
     }
     else {
-      return '<p>' . t('To configure your Amazon Web Services credentials, enable the \'AWS SDK for PHP UI\' module,
-        or define those settings in the $conf array in settings.php.') . '</p>';
+      return '<p>' . t("To configure your Amazon Web Services credentials, enable the 'AWS SDK for PHP UI' module,
+        or define those settings in the $conf array in your site's settings.php file.") . '</p>';
     }
   }
 }
@@ -84,21 +84,19 @@ function s3fs_help($path, $arg) {
  */
 function s3fs_admin() {
   $form = array();
-
+  
   $form['s3fs_bucket'] = array(
     '#type'           => 'textfield',
     '#title'          => t('S3 Bucket Name'),
     '#default_value'  => variable_get('s3fs_bucket', ''),
     '#required'       => TRUE,
   );
-
   $form['s3fs_cname'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Enable CNAME'),
     '#description'    => t('Serve files from a custom domain by using an appropriately named bucket, e.g. "mybucket.mydomain.com".'),
     '#default_value'  => variable_get('s3fs_cname', 0),
   );
-
   $form['s3fs_domain'] = array(
     '#type'           => 'textfield',
     '#title'          => t('CDN Domain Name'),
@@ -110,7 +108,23 @@ function s3fs_admin() {
       )
     ),
   );
-
+  $form['s3fs_customhost'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Use a Custom Hostname'),
+    '#description'    => t('Connect to an S3-compatible storage service other than Amazon.'),
+    '#default_value'  => variable_get('s3fs_customhost', FALSE),
+  );
+  $form['s3fs_hostname'] = array(
+    '#type'           => 'textfield',
+    '#title'          => t('Hostname'),
+    '#description'    => t('Custom service hostname (e.g. objects.dreamhost.com)'),
+    '#default_value'  => variable_get('s3fs_hostname', ''),
+    '#states'         => array(
+      'visible' => array(
+        ':input[id=edit-s3fs-customhost]' => array('checked' => TRUE),
+      )
+    ),
+  );
   $form['s3fs_torrents'] = array(
     '#type' => 'textarea',
     '#title' => t('Torrents'),
@@ -118,7 +132,6 @@ function s3fs_admin() {
     '#default_value' => variable_get('s3fs_torrents', ''),
     '#rows' => 10,
   );
-
   $form['s3fs_presigned_urls'] = array(
     '#type' => 'textarea',
     '#title' => t('Presigned URLs'),
@@ -126,7 +139,6 @@ function s3fs_admin() {
     '#default_value' => variable_get('s3fs_presigned_urls', ''),
     '#rows' => 10,
   );
-
   $form['s3fs_saveas'] = array(
     '#type' => 'textarea',
     '#title' => t('Force Save As'),
@@ -134,13 +146,12 @@ function s3fs_admin() {
     '#default_value' => variable_get('s3fs_saveas', ''),
     '#rows' => 10,
   );
-
+  
   $form['s3fs_refresh_cache'] = array(
     '#type' => 'fieldset',
     '#description' => t("The file metadata cache keeps track of every file that S3 File System writes to (and deletes from) the S3 bucket, so that queries for data about those files (checks for existence, filetype, etc.) don't have to hit S3. This speeds up many operations, most noticeably anything related to images and their derivatives."),
     '#title' => t('File Metadata Cache'),
   );
-
   $form['s3fs_refresh_cache']['refresh'] = array(
     '#type' => 'submit',
     '#suffix' => '<div class="refresh">' . t("This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket, and saves it to the database. This may take a while for buckets with many thousands of files. <br>It should only be necessary to use this button if you've just installed S3 File System and you need to cache all the pre-existing files in your bucket, or if you need to restore your metadata cache from scratch for some other reason.") . '</div>',
@@ -149,7 +160,7 @@ function s3fs_admin() {
   );
   // Push the button closer to its own description, rather than the fieldset's description, and push the disable checkbox away from the button description.
   $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array('#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'));
-
+  
   $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Ignore the file metadata cache'),
@@ -476,17 +487,32 @@ function _s3fs_get_amazons3_client($bucket=NULL) {
       throw new AWSException(t('Cannot load AmazonS3 class. Please ensure that the awssdk library is installed correctly.'));
     }
     $s3 = new AmazonS3();
+    
     // When the bucket has a . in its name, we are forced to use "path style"
     // URLs (http://s3.amazonaws.com/bucket-name) instead of the default
     // "DNS style" URLs (http://bucket-name.s3.amazonaws.com) because of the
     // way that newer versions of OpenSSL verify certificate hosts.
     // See: https://forums.aws.amazon.com/thread.jspa?threadID=69108
     if (strpos($bucket, '.') !== FALSE) {
+      // TODO: This might be incompatible with set_hostname() below. I don't know and can't test it.
       $s3->enable_path_style();
     }
+    
     // Using SSL slows down uploads significantly, but it's unsafe to disable it.
     // I'm still looking for a better solution. -- coredumperror 2013/07/12
     //$s3->disable_ssl();
+    
+    if (variable_get('s3fs_customhost', FALSE)) {
+      $hostname = variable_get('s3fs_hostname', '');
+      if (empty($hostname)) {
+        $msg = t('The Custom Hostname option is enabled, but no custom host domain has been set.');
+        drupal_set_message($msg, 'error');
+        watchdog('S3 File System', $msg, array(), WATCHDOG_ERROR);
+      }
+      else {
+        $s3->set_hostname($hostname);
+      }
+    }
   }
   
   return $s3;
