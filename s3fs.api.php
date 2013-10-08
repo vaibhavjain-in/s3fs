@@ -9,7 +9,7 @@
 
 /**
  * @defgroup s3fs_hooks S3 File System hooks
- * Hooks that can be implemented by other modules in order to extend S3 File System.
+ * Hooks that can be implemented by other modules to extend S3 File System.
  */
 
 /**
@@ -23,7 +23,7 @@
  * @param array $info
  *   Array of keyed elements:
  *     - 'download_type': either 'http' or 'torrent'.
- *     - 'torrent': (boolean) Causes use of an authenticated URL (time limited)
+ *     - 'torrent': (boolean) Triggers use of an authenticated URL (w/ timeout)
  *     - 'presigned_url_timeout': (boolean) Time in seconds before an
  *          authenticated URL will time out.
  *     - 'response': array of additional options as described at

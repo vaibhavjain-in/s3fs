@@ -66,7 +66,7 @@ function s3fs_permission() {
  * Implements hook_help().
  */
 function s3fs_help($path, $arg) {
-  if ($path == 'admin/config/media/s3fs'){
+  if ($path == 'admin/config/media/s3fs') {
     if (module_exists('awssdk_ui')) {
       return '<p>' . t('Amazon Web Services authentication can be configured on the <a href="@awssdk_config">AWS SDK configuration page</a>.',
         array('@awssdk_config' => url('admin/config/media/awssdk'))) . '</p>';
@@ -214,12 +214,9 @@ function s3fs_refresh_cache_submit($form, &$form_state) {
  * It exists to improve the performance of serving newly-created image
  * derivatives from S3.
  *
- * @param string $style
- *   The image style.
- * @param string $scheme
- *   The URI scheme. This will always be 's3'.
- * @param string $file_path_parts
- *   All the parameters after the scheme are the split file path.
+ * Note to future maintainers: this function is variatic. It accepts two fixed
+ * arguments: $style and $scheme, and any number of further arguments, which
+ * represent the path to the file in S3 (split on the slahses).
  */
 function s3fs_image_style_deliver() {
   // Drupal's black magic calls this function with the image style as arg0,
@@ -281,7 +278,7 @@ function s3fs_image_style_deliver() {
 /**
  * Checks all the configuration options to ensure that they're valid.
  *
- * @return boolean
+ * @return bool
  *   TRUE if config is good to go, otherwise FALSE.
  */
 function _s3fs_validate_config($bucket) {
@@ -345,7 +342,7 @@ function _s3fs_refresh_cache($bucket) {
     ->condition('dir', 0, '=')
     ->execute();
   
-  $last_key = NULL;
+  $marker = NULL;
   do {
     $args = array();
     if (!empty($marker)) {
@@ -373,8 +370,8 @@ function _s3fs_refresh_cache($bucket) {
         $file_metadata_list[] = _s3fs_format_metadata($uri, $s3_metadata);
       }
       
-      // If we need to get another page of repsonces, the final key in the
-      // previous pages acts as the marker.
+      // If we need to get another page of responces, the final key in the
+      // previous page acts as the marker.
       $marker = $s3_metadata['Key'];
     }
     
@@ -485,7 +482,7 @@ function _s3fs_format_metadata($uri, $s3_metadata) {
       $metadata['uid'] = (string) $s3_metadata['Owner']['ID'];
     }
     $metadata['dir'] = 0;
-    // The S_IFREG posix flag
+    // The S_IFREG posix flag.
     $metadata['mode'] = 0100000;
   }
   // Everything is writeable.
@@ -501,7 +498,7 @@ function _s3fs_s3_object_to_s3_metadata($object) {
   // This is an "icky" but effective way to do a deep conversion of
   // an object into a multi-dimentional array, found here:
   // http://stackoverflow.com/a/2476954/464318
-  return json_decode(json_encode($object), true);
+  return json_decode(json_encode($object), TRUE);
 }
 
 class AWSException extends Exception {}
@@ -538,7 +535,10 @@ function _s3fs_get_amazons3_client($bucket = NULL) {
     
     // Using SSL makes uploads significantly slower, but is unsafe to disable.
     // I'm still looking for a better solution. -- coredumperror 2013/07/12
-    //$s3->disable_ssl();
+    // Using AWS SDK for PHP 2.0 may work. -- coredumperror 2013/10/08
+    /*
+    $s3->disable_ssl();
+    */
     
     if (variable_get('s3fs_customhost', FALSE)) {
       $hostname = variable_get('s3fs_hostname', '');

@@ -27,7 +27,6 @@ function s3fs_requirements($phase) {
   );
 
   // TODO: Add check for awssdk library.
-
   return $requirements;
 }
 

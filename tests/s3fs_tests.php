@@ -11,7 +11,7 @@
  * inside, meaning that the site's file database will be empty, while S3 isn't.
  */
 
-global $_s3fs_debug = FALSE;
+global $_s3fs_debug;
 
 function my_assert($condition, $line, $message) {
   if (!$condition) {
@@ -109,8 +109,6 @@ function test_print($str) {
 }
 
 function startUp() {
-  $stdout = fopen('php://stdout', 'w');
-  
   ini_set('display_errors', 'TRUE');
   ini_set('display_startup_errors', 'TRUE');
   ini_set('max_execution_time', 18000);
@@ -140,7 +138,7 @@ function bootstrap() {
 
 function parse_arguments($argc, $argv) {
   if ($argc < 2 || ($argc == 3 && $argv[2] != '--no-debug') || $argc > 3) {
-    fwrite(STDERR, "Usage: {$argv[0} <filename> [--no-debug]\n\n");
+    fwrite(STDERR, "Usage: {$argv[0]} <filename> [--no-debug]\n\n");
     exit(1);
   }
   if ($argc == 2) {
