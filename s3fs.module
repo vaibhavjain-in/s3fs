@@ -33,7 +33,7 @@ function s3fs_menu() {
   
   $items['admin/config/media/s3fs'] = array(
     'title' => 'S3 File System',
-    'description' => t('Configure S3 File System settings.'),
+    'description' => 'Configure S3 File System settings.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('s3fs_admin'),
     'access arguments' => array('administer s3fs'),
@@ -172,13 +172,34 @@ function s3fs_admin() {
 }
 
 function s3fs_admin_validate($form, &$form_state) {
+  $form_state['values']['s3fs_bucket'] = filter_xss($form_state['values']['s3fs_bucket']);
+  
+  $orig_customhost = variable_get('s3fs_customhost', NULL);
+  $orig_hostname = variable_get('s3fs_hostname', NULL);
+  $use_temp = variable_get('s3fs_customhost') !== $form_state['values']['s3fs_customhost'] || variable_get('s3fs_hostname') !== $form_state['values']['s3fs_hostname'];
+  if ($use_temp) {
+    // IF the user changed then, temporarily set the s3fs_customhost and
+    // s3fs_hostname variables to their values in the form, so that
+    // _s3fs_get_amazons3_client() can get their new values during validation.
+    variable_set('s3fs_customhost', $form_state['values']['s3fs_customhost']);
+    variable_set('s3fs_hostname', filter_xss($form_state['values']['s3fs_hostname']));
+  }
   _s3fs_validate_config($form_state['values']['s3fs_bucket']);
+  if ($use_temp) {
+    variable_set('s3fs_customhost', $orig_customhost);
+    variable_set('s3fs_hostname', $orig_hostname);
+  }
 }
 
 /**
  * Submit callback for the refresh file metadata cache button.
  */
 function s3fs_refresh_cache_submit($form, &$form_state) {
+  $form_state['values']['s3fs_domain']         = filter_xss($form_state['values']['s3fs_domain']);
+  $form_state['values']['s3fs_torrents']       = filter_xss($form_state['values']['s3fs_torrents']);
+  $form_state['values']['s3fs_saveas']         = filter_xss($form_state['values']['s3fs_saveas']);
+  $form_state['values']['s3fs_presigned_urls'] = filter_xss($form_state['values']['s3fs_presigned_urls']);
+  $form_state['values']['s3fs_bucket']         = filter_xss($form_state['values']['s3fs_bucket']);
   _s3fs_refresh_cache($form_state['values']['s3fs_bucket']);
 }
 

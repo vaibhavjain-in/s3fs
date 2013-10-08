@@ -38,10 +38,12 @@ function s3fs_uninstall() {
   variable_del('s3fs_bucket');
   variable_del('s3fs_cname');
   variable_del('s3fs_domain');
-  variable_del('s3fs_ignore_cache');
+  variable_del('s3fs_customhost');
+  variable_del('s3fs_hostname');
   variable_del('s3fs_torrents');
   variable_del('s3fs_presigned_urls');
   variable_del('s3fs_saveas');
+  variable_del('s3fs_ignore_cache');
 }
 
 /**
