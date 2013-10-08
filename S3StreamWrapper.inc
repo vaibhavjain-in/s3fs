@@ -99,7 +99,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *
    * Uses Drupal's mimetype mapping, unless a different mapping is specified.
    *
-   * @return
+   * @return string
    *   Returns a string representing the file's MIME type, or
    *   'application/octet-stream' if no type cna be determined.
    */
@@ -212,12 +212,10 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Sets the stream resource URI.
+   * Sets the stream resource URI. URIs are formatted as "s3://key".
    *
-   * URIs are formatted as "s3://key".
-   *
-   * @return
-   *   Returns the current URI of the instance.
+   * @param $uri
+   *   A string containing the URI that should be used for this instance.
    */
   public function setUri($uri) {
     $this->_debug("setUri($uri) called.");
@@ -225,11 +223,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Returns the stream resource URI.
+   * Returns the stream resource URI. URIs are formatted as "s3://key".
    *
-   * URIs are formatted as "s3://key".
-   *
-   * @return
+   * @return string
    *   Returns the current URI of the instance.
    */
   public function getUri() {
@@ -240,10 +236,10 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Returns a web accessible URL for the resource.
    *
-   * In the format http://mybucket.s3.amazonaws.com/key, or something different
-   * as configured in the admin settings.
+   * The format of the returned URL will be different depending on how the S3
+   * integration has been configured on the S3 File System admin page.
    *
-   * @return
+   * @return string
    *   Returns a string containing a web accessible URL for the resource.
    */
   public function getExternalUrl() {
@@ -535,18 +531,20 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_seek($offset, $whence) {
     $this->_debug("stream_seek($offset, $whence) called.");
-    switch($whence) {
+    switch ($whence) {
       case SEEK_CUR:
-        // Set position to current location plus $offset
+        // Set position to current location plus $offset.
         $new_position = $this->position + $offset;
         break;
+        
       case SEEK_END:
-        // Set position to eof plus $offset
+        // Set position to eof plus $offset.
         $new_position = $this->object_size + $offset;
         break;
+        
       case SEEK_SET:
       default:
-        // Set position equal to $offset
+        // Set position equal to $offset.
         $new_position = $offset;
         break;
     }
@@ -791,7 +789,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       $result = db_delete('s3fs_file')
         ->condition('uri', rtrim($uri, '/'), '=')
         ->execute();
-      return (bool)$result;
+      return (bool) $result;
     }
     return FALSE;
   }
@@ -932,8 +930,8 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   protected function _clear_buffer() {
     $this->position = 0;
     $this->object_size = 0;
-    $this->buffer = null;
-    $this->buffer_write = false;
+    $this->buffer = NULL;
+    $this->buffer_write = FALSE;
     $this->buffer_length = 0;
   }
   
@@ -1003,12 +1001,13 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @param string $uri
    *   A string containing the uri of the resource to check.
    *
-   *  @return bool
-   *    An array if the $uri exists, otherwise FALSE.
+   * @return bool
+   *   An array if the $uri exists, otherwise FALSE.
    */
   protected function _s3fs_get_object($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_debug("_s3fs_get_object($uri) called.");
+    // $this->_debug("_s3fs_get_object($uri) called.");
+    
     // For the root directory, just return metadata for a generic folder.
     if ($uri == 's3://' || $uri == 's3:') {
       $metadata = _s3fs_format_metadata('/', array(), TRUE);
@@ -1051,7 +1050,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_read_cache($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_debug("_s3fs_read_cache($uri) called.");
+    // $this->_debug("_s3fs_read_cache($uri) called.");
     $record = db_query("SELECT * FROM {s3fs_file} WHERE uri = :uri", array(':uri' => $uri))->fetchAssoc();
     return $record ? $record : FALSE;
   }
@@ -1060,7 +1059,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * Write an object's metadata to the cache. Also write its ancestor folders
    * to the cache.
    *
-   * @param array metadata
+   * @param array $metadata
    *   An associative array of file metadata, in this format:
    *     'uri' => The full URI of the file, including 's3://'.
    *     'filesize' => The size of the file, in bytes.
@@ -1074,7 +1073,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_write_cache($metadata) {
     // Since this is an internal function, don't log it by default.
-    //$this->_debug("_s3fs_write_cache({$metadata['uri']}) called.");
+    // $this->_debug("_s3fs_write_cache({$metadata['uri']}) called.");
     db_merge('s3fs_file')
       ->key(array('uri' => $metadata['uri']))
       ->fields($metadata)
@@ -1098,7 +1097,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_delete_cache($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_debug("_s3fs_delete_cache($uri) called.");
+    // $this->_debug("_s3fs_delete_cache($uri) called.");
     $delete_query = db_delete('s3fs_file');
     if (is_array($uri)) {
       // Build an OR condition to delete all the URIs in one query.
@@ -1131,7 +1130,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Logging function used for debugging.
    */
-  private static function _debug($msg) {
+  protected static function _debug($msg) {
     global $_s3fs_debug;
     if ($_s3fs_debug) {
       print "TEST: $msg\n";

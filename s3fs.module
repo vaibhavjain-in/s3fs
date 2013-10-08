@@ -246,8 +246,8 @@ function s3fs_image_style_deliver() {
   if (!file_exists($derivative_uri)) {
     $lock_acquired = lock_acquire($lock_name);
     if (!$lock_acquired) {
-      // Tell client to retry again in 3 seconds. Currently no browsers are known
-      // to support Retry-After.
+      // Tell client to retry again in 3 seconds. No browsers are currently
+      // known to support Retry-After, though.
       drupal_add_http_header('Status', '503 Service Unavailable');
       drupal_add_http_header('Retry-After', 3);
       print t('Image generation in progress. Try again shortly.');
