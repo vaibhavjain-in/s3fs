@@ -52,7 +52,7 @@ function s3fs_menu() {
 }
 
 /**
- * Implementation of hook_permission().
+ * Implements hook_permission().
  */
 function s3fs_permission() {
   return array(
@@ -66,15 +66,14 @@ function s3fs_permission() {
  * Implements hook_help().
  */
 function s3fs_help($path, $arg) {
-  switch ($path) {
-    case 'admin/config/media/s3fs':
+  if ($path == 'admin/config/media/s3fs'){
     if (module_exists('awssdk_ui')) {
       return '<p>' . t('Amazon Web Services authentication can be configured on the <a href="@awssdk_config">AWS SDK configuration page</a>.',
         array('@awssdk_config' => url('admin/config/media/awssdk'))) . '</p>';
     }
     else {
       return '<p>' . t("To configure your Amazon Web Services credentials, enable the 'AWS SDK for PHP UI' module,
-        or define those settings in the $conf array in your site's settings.php file.") . '</p>';
+        or define those settings in the \$conf array in your site's settings.php file.") . '</p>';
     }
   }
 }
@@ -105,7 +104,7 @@ function s3fs_admin() {
     '#states'         => array(
       'visible' => array(
         ':input[id=edit-s3fs-cname]' => array('checked' => TRUE),
-      )
+      ),
     ),
   );
   $form['s3fs_customhost'] = array(
@@ -122,7 +121,7 @@ function s3fs_admin() {
     '#states'         => array(
       'visible' => array(
         ':input[id=edit-s3fs-customhost]' => array('checked' => TRUE),
-      )
+      ),
     ),
   );
   $form['s3fs_torrents'] = array(
@@ -158,7 +157,8 @@ function s3fs_admin() {
     '#value' => t('Refresh file metadata cache'),
     '#submit' => array('s3fs_refresh_cache_submit'),
   );
-  // Push the button closer to its own description, rather than the fieldset's description, and push the disable checkbox away from the button description.
+  // Push the button closer to its own description, rather than the fieldset's
+  // description, and push the disable checkbox away from the description.
   $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array('#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'));
   
   $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
@@ -171,6 +171,9 @@ function s3fs_admin() {
   return system_settings_form($form);
 }
 
+/**
+ * Validates the values on the admin form.
+ */
 function s3fs_admin_validate($form, &$form_state) {
   $form_state['values']['s3fs_bucket'] = filter_xss($form_state['values']['s3fs_bucket']);
   
@@ -211,8 +214,12 @@ function s3fs_refresh_cache_submit($form, &$form_state) {
  * It exists to improve the performance of serving newly-created image
  * derivatives from S3.
  *
- * @param $style
- *   The image style
+ * @param string $style
+ *   The image style.
+ * @param string $scheme
+ *   The URI scheme. This will always be 's3'.
+ * @param string $file_path_parts
+ *   All the parameters after the scheme are the split file path.
  */
 function s3fs_image_style_deliver() {
   // Drupal's black magic calls this function with the image style as arg0,
@@ -221,7 +228,8 @@ function s3fs_image_style_deliver() {
   // filename.
   $args = func_get_args();
   $style = array_shift($args);
-  $scheme = array_shift($args);
+  // The second parameter ($scheme) is unused, since we know we're using s3://.
+  array_shift($args);
   $filename = implode('/', $args);
   
   $valid = !empty($style);
@@ -273,7 +281,7 @@ function s3fs_image_style_deliver() {
 /**
  * Checks all the configuration options to ensure that they're valid.
  *
- * @return
+ * @return boolean
  *   TRUE if config is good to go, otherwise FALSE.
  */
 function _s3fs_validate_config($bucket) {
@@ -292,7 +300,7 @@ function _s3fs_validate_config($bucket) {
       form_set_error('s3fs_bucket', t('The specified S3 access credentials are invalid.'));
       return FALSE;
     }
-    else if (!$s3->if_bucket_exists($bucket)) {
+    elseif (!$s3->if_bucket_exists($bucket)) {
       form_set_error('s3fs_bucket', t('The bucket "@bucket" does not exist.', array('@bucket' => $bucket)));
       return FALSE;
     }
@@ -318,7 +326,8 @@ function _s3fs_validate_config($bucket) {
 /**
  * Calls AmazonS3::list_objects() enough times to get all the files in the
  * specified bucket (the API returns at most 1000 per call), and stores their
- * metadata in the cache table. Then it builds
+ * metadata in the cache table. Then it builds the list of folders by analyzing
+ * the full pathnames of all the files.
  */
 function _s3fs_refresh_cache($bucket) {
   // Bomb out with an error if our configuration settings are invalid.
@@ -329,8 +338,9 @@ function _s3fs_refresh_cache($bucket) {
   $s3 = _s3fs_get_amazons3_client($bucket);
   $metadata_fields = array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid');
   
-  // Clear the files out of the metadata table, so we can recreate them from scratch.
-  // Directories are not erased because empty directories could not be regenerated.
+  // Clear the files out of the metadata table, so we can recreate them from
+  // scratch. Directories are not erased because empty directories could not
+  // be regenerated.
   db_delete('s3fs_file')
     ->condition('dir', 0, '=')
     ->execute();
@@ -338,8 +348,8 @@ function _s3fs_refresh_cache($bucket) {
   $last_key = NULL;
   do {
     $args = array();
-    if ($last_key) {
-      $args['marker'] = $last_key;
+    if (!empty($marker)) {
+      $args['marker'] = $marker;
     }
     
     $response = $s3->list_objects($bucket, $args);
@@ -352,7 +362,7 @@ function _s3fs_refresh_cache($bucket) {
     foreach ($response->body->Contents as $object) {
       $s3_metadata = _s3fs_s3_object_to_s3_metadata($object);
       $uri = "s3://{$s3_metadata['Key']}";
-      $is_dir = $uri[strlen($uri)-1] == '/';
+      $is_dir = $uri[strlen($uri) - 1] == '/';
       
       if ($is_dir) {
         // There may be files in the S3 bucket pretending to be folders, by
@@ -363,12 +373,12 @@ function _s3fs_refresh_cache($bucket) {
         $file_metadata_list[] = _s3fs_format_metadata($uri, $s3_metadata);
       }
       
-      // Keep track of the last key in the response, so that if we need to get
-      // another page of responses, we know which filename to use as the 'marker'.
-      $last_key = $s3_metadata['Key'];
+      // If we need to get another page of repsonces, the final key in the
+      // previous pages acts as the marker.
+      $marker = $s3_metadata['Key'];
     }
     
-    // Re-populate the file metadata table with the current page's file results.
+    // Re-populate the file metadata table with the current page's files.
     $insert_query = db_insert('s3fs_file')
       ->fields($metadata_fields);
     foreach ($file_metadata_list as $metadata) {
@@ -381,11 +391,14 @@ function _s3fs_refresh_cache($bucket) {
     catch (PDOException $e) {
       if ($e->getCode() == 23000) {
         // This shouldn't ever happen!!!
-        // I originally coded this error correction for the case when there are two files in S3 with the same name, but
-        // different capitalization. By default, MySQL doesn't allow string keys which are case-insensitively identical,
-        // but I found out how to get around that by using utf8_bin collation.
-        // Just in case this does ever happen, though, the best we can do is redo each insert one at a time, catching
-        // and logging the individual failures.
+        // I originally coded this error correction for the case when there are
+        // two files in S3 with the same name, but different capitalization. By
+        // default, MySQL doesn't allow string keys which are case-insensitive
+        // identical, but I found out how to get around that by using utf8_bin
+        // collation.
+        // Just in case this does ever happen, though, the best we can do is
+        // redo each insert one at a time, catching and logging the individual
+        // failures.
         foreach ($file_metadata_list as $metadata) {
           try {
             db_insert('s3fs_file')
@@ -438,14 +451,14 @@ function _s3fs_refresh_cache($bucket) {
  * Convert file metadata returned from S3 into an array appropriate
  * for insertion into our file metadata cache.
  *
- * @param $uri
+ * @param string $uri
  *   A string containing the uri of the resource to check.
- * @param $s3_metadata
+ * @param array $s3_metadata
  *   An array containing the collective metadata for the Amazon S3 object.
  *   The caller may send an empty array here to indicate that the returned
  *   metadata should represent a folder.
  *
- * @return
+ * @return array
  *   An array containing metadata formatted for the file metadata cache.
  */
 function _s3fs_format_metadata($uri, $s3_metadata) {
@@ -454,10 +467,11 @@ function _s3fs_format_metadata($uri, $s3_metadata) {
   if (empty($s3_metadata)) {
     // The caller wants directory metadata, so invent some.
     $metadata['dir'] = 1;
-    $metadata['mode'] = 0040000; // S_IFDIR indicating directory
     $metadata['filesize'] = 0;
     $metadata['timestamp'] = time();
     $metadata['uid'] = 'S3 File System';
+    // The posix S_IFDIR flag.
+    $metadata['mode'] = 0040000;
   }
   else {
     // The caller sent us some actual metadata, so this must be a file.
@@ -465,25 +479,27 @@ function _s3fs_format_metadata($uri, $s3_metadata) {
       $metadata['filesize'] = $s3_metadata['Size'];
     }
     if (isset($s3_metadata['LastModified'])) {
-      $metadata['timestamp'] = date('U', strtotime((string)$s3_metadata['LastModified']));
+      $metadata['timestamp'] = date('U', strtotime((string) $s3_metadata['LastModified']));
     }
     if (isset($s3_metadata['Owner']['ID'])) {
-      $metadata['uid'] = (string)$s3_metadata['Owner']['ID'];
+      $metadata['uid'] = (string) $s3_metadata['Owner']['ID'];
     }
     $metadata['dir'] = 0;
-    $metadata['mode'] = 0100000; // S_IFREG indicating file
+    // The S_IFREG posix flag
+    $metadata['mode'] = 0100000;
   }
-  $metadata['mode'] |= 0777; // everything is writeable
+  // Everything is writeable.
+  $metadata['mode'] |= 0777;
   return $metadata;
 }
 
 /**
  * Converts objects returned by AmazonS3::get_objects() into s3 metadata arrays
- * compatible with those returned by AmazonS3::get_object_metadata();
+ * compatible with those returned by AmazonS3::get_object_metadata().
  */
 function _s3fs_s3_object_to_s3_metadata($object) {
-  // This is an "icky" but effective way to do a deep conversion of an object
-  // into a multi-dimentional array, found here:
+  // This is an "icky" but effective way to do a deep conversion of
+  // an object into a multi-dimentional array, found here:
   // http://stackoverflow.com/a/2476954/464318
   return json_decode(json_encode($object), true);
 }
@@ -497,14 +513,14 @@ class AWSException extends Exception {}
  * For performance reasons, only one AmazonS3 client object will ever be created
  * within a single request.
  */
-function _s3fs_get_amazons3_client($bucket=NULL) {
+function _s3fs_get_amazons3_client($bucket = NULL) {
   static $s3;
   
   if (!isset($s3)) {
     if (!libraries_load('awssdk')) {
       throw new AWSException(t('Unable to load the AWS SDK. Please check you have installed the library correctly and configured your S3 credentials.'));
     }
-    else if (!class_exists('AmazonS3')) {
+    elseif (!class_exists('AmazonS3')) {
       throw new AWSException(t('Cannot load AmazonS3 class. Please ensure that the awssdk library is installed correctly.'));
     }
     $s3 = new AmazonS3();
@@ -515,11 +531,12 @@ function _s3fs_get_amazons3_client($bucket=NULL) {
     // way that newer versions of OpenSSL verify certificate hosts.
     // See: https://forums.aws.amazon.com/thread.jspa?threadID=69108
     if (strpos($bucket, '.') !== FALSE) {
-      // TODO: This might be incompatible with set_hostname() below. I don't know and can't test it.
+      // TODO: This *might* be incompatible with set_hostname() below.
+      // I don't know and can't currently test it.
       $s3->enable_path_style();
     }
     
-    // Using SSL slows down uploads significantly, but it's unsafe to disable it.
+    // Using SSL makes uploads significantly slower, but is unsafe to disable.
     // I'm still looking for a better solution. -- coredumperror 2013/07/12
     //$s3->disable_ssl();
     

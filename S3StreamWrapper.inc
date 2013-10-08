@@ -7,6 +7,7 @@
  * Implements DrupalStreamWrapperInterface to provide an Amazon S3 wrapper with
  * the s3:// prefix.
  */
+
 class S3StreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
@@ -15,15 +16,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   protected $uri;
   
   /**
-   * @var AmazonS3 S3 client object from the AWS SDK, shared across all
-   * instances of S3StreamWrapper.
-   */
-  protected static $s3_client = null;
-  
-  /**
    * @var AmazonS3 An alias for self::$s3_client.
    */
-  protected $s3 = null;
+  protected $s3 = NULL;
   
   /**
    * @var string S3 bucket name.
@@ -108,8 +103,8 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns a string representing the file's MIME type, or
    *   'application/octet-stream' if no type cna be determined.
    */
-  public static function getMimeType($uri, $mapping=NULL) {
-    self::_test_log("getMimeType($uri, $mapping) called.");
+  public static function getMimeType($uri, $mapping = NULL) {
+    self::_debug("getMimeType($uri, $mapping) called.");
     // Load the default mime type map.
     if (!isset(self::$mime_type_mapping)) {
       include_once DRUPAL_ROOT . '/includes/file.mimetypes.inc';
@@ -129,9 +124,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     
     // Iterate over the file parts, trying to find a match.
     // For my.awesome.image.jpeg, we try:
-    //   - jpeg
-    //   - image.jpeg
-    //   - awesome.image.jpeg
+    //  - jpeg
+    //  - image.jpeg
+    //  - awesome.image.jpeg
     while ($additional_part = array_pop($file_parts)) {
       $extension = strtolower($additional_part . ($extension ? '.' . $extension : ''));
       if (isset($mapping['extensions'][$extension])) {
@@ -164,11 +159,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     global $is_https;
     if ($is_https) {
       $scheme = 'https';
-      $this->_test_log('Using HTTPS.');
+      $this->_debug('Using HTTPS.');
     }
     else {
       $scheme = 'http';
-      $this->_test_log('Using HTTP.');
+      $this->_debug('Using HTTP.');
     }
     // CNAME support for customizing S3 URLs.
     if (variable_get('s3fs_cname', FALSE)) {
@@ -189,13 +184,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
-    // Torrent list
     $torrents = explode("\n", variable_get('s3fs_torrents', ''));
     $torrents = array_map('trim', $torrents);
     $torrents = array_filter($torrents, 'strlen');
     $this->torrents = $torrents;
     
-    // Presigned url-list
     $presigned_urls = explode("\n", variable_get('s3fs_presigned_urls', ''));
     $presigned_urls = array_map('trim', $presigned_urls);
     $presigned_urls = array_filter($presigned_urls, 'strlen');
@@ -211,12 +204,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
-    // Force "save as" list
     $saveas = explode("\n", variable_get('s3fs_saveas', ''));
     $this->saveas = array_filter(array_map('trim', $saveas), 'strlen');
     
     $this->constructed = TRUE;
-    $this->_test_log('S3StreamWrapper constructed.');
+    $this->_debug('S3StreamWrapper constructed.');
   }
   
   /**
@@ -228,7 +220,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns the current URI of the instance.
    */
   public function setUri($uri) {
-    $this->_test_log("setUri($uri) called.");
+    $this->_debug("setUri($uri) called.");
     $this->uri = $uri;
   }
   
@@ -241,7 +233,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns the current URI of the instance.
    */
   public function getUri() {
-    $this->_test_log('getUri() called.');
+    $this->_debug('getUri() called.');
     return $this->uri;
   }
   
@@ -255,7 +247,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns a string containing a web accessible URL for the resource.
    */
   public function getExternalUrl() {
-    $this->_test_log('getExternalUri() called.');
+    $this->_debug('getExternalUri() called.');
     $s3_filename = $this->_uri_to_s3_filename($this->uri);
     
     // Image styles support:
@@ -267,7 +259,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     if ($path_parts[0] == 'styles') {
       if (!$this->_s3fs_get_object($this->uri)) {
         array_shift($path_parts);
-        return url('s3/files/styles/' . implode('/', $path_parts), array('absolute' => true));
+        return url('s3/files/styles/' . implode('/', $path_parts), array('absolute' => TRUE));
       }
     }
     
@@ -281,9 +273,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     // Allow other modules to change the download link type.
     $info = array_merge($info, module_invoke_all('s3fs_url_info', $s3_filename, $info));
     
-    ///////////////
-    // UI overrides
-    ///////////////
+    //////////////////////////////
+    // Overrides from the Admin UI
+    //////////////////////////////
     // Torrent URLs
     if ($info['download_type'] != 'torrent') {
       foreach ($this->torrents as $path) {
@@ -303,7 +295,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
         }
       }
     }
-    // Save as
+    // Forced "Save As"
     if ($info['download_type'] != 'torrent') {
       foreach ($this->saveas as $path) {
         if (preg_match('#' . strtr($path, '#', '\#') . '#', $s3_filename)) {
@@ -338,7 +330,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function chmod($mode) {
     $this->_assert_constructor_called();
-    $this->_test_log("chmod($mode) called.");
+    $this->_debug("chmod($mode) called.");
     return TRUE;
   }
   
@@ -350,7 +342,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns FALSE.
    */
   public function realpath() {
-    $this->_test_log("realpath() called.");
+    $this->_debug("realpath() called.");
     return FALSE;
   }
   
@@ -369,8 +361,8 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *
    * @see drupal_dirname()
    */
-  public function dirname($uri=NULL) {
-    $this->_test_log("dirname($uri) called.");
+  public function dirname($uri = NULL) {
+    $this->_debug("dirname($uri) called.");
     if (!isset($uri)) {
       $uri = $this->uri;
     }
@@ -403,7 +395,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-open.php
    */
   public function stream_open($uri, $mode, $options, &$opened_path) {
-    $this->_test_log("stream_open($uri, $mode, $options, $opened_path) called.");
+    $this->_debug("stream_open($uri, $mode, $options, $opened_path) called.");
     $this->uri = $uri;
     
     // If this stream is being opened for writing, clear the object buffer
@@ -436,7 +428,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-close.php
    */
   public function stream_close() {
-    $this->_test_log("stream_close() called.");
+    $this->_debug("stream_close() called.");
     $this->_clear_buffer();
     return TRUE;
   }
@@ -459,7 +451,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-lock.php
    */
   public function stream_lock($operation) {
-    $this->_test_log("stream_lock($operation) called.");
+    $this->_debug("stream_lock($operation) called.");
     return FALSE;
   }
   
@@ -475,7 +467,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-read.php
    */
   public function stream_read($count) {
-    $this->_test_log("stream_read($count) called.");
+    $this->_debug("stream_read($count) called.");
     // Make sure that count doesn't exceed object size
     if ($count + $this->position > $this->object_size) {
       $count = $this->object_size - $this->position;
@@ -531,7 +523,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-eof.php
    */
   public function stream_eof() {
-    $this->_test_log("stream_eof() called.");
+    $this->_debug("stream_eof() called.");
     if (!$this->uri) {
       return TRUE;
     }
@@ -552,7 +544,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-seek.php
    */
   public function stream_seek($offset, $whence) {
-    $this->_test_log("stream_seek($offset, $whence) called.");
+    $this->_debug("stream_seek($offset, $whence) called.");
     switch($whence) {
       case SEEK_CUR:
         // Set position to current location plus $offset
@@ -585,7 +577,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-flush.php
    */
   public function stream_flush() {
-    $this->_test_log("stream_flush() called after {$this->sw_call_count} calls to stream_write().");
+    $this->_debug("stream_flush() called after {$this->sw_call_count} calls to stream_write().");
     $this->sw_call_count = 0;
     
     // TODO: To enforce per user space limits, we may want to call file_validate_size() in here before
@@ -621,7 +613,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-tell.php
    */
   public function stream_tell() {
-    $this->_test_log("stream_tell() called.");
+    $this->_debug("stream_tell() called.");
     return $this->position;
   }
   
@@ -635,7 +627,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-stat.php
    */
   public function stream_stat() {
-    $this->_test_log("stream_stat() called.");
+    $this->_debug("stream_stat() called.");
     return $this->_stat($this->uri);
   }
   
@@ -655,7 +647,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function unlink($uri) {
     $this->_assert_constructor_called();
-    $this->_test_log("unlink($uri) called.");
+    $this->_debug("unlink($uri) called.");
     $response = $this->s3->delete_object($this->bucket, $this->_uri_to_s3_filename($uri));
     if ($response->isOK()) {
       $this->_s3fs_delete_cache($uri);
@@ -682,7 +674,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function rename($from_uri, $to_uri) {
     $this->_assert_constructor_called();
-    $this->_test_log("rename() called.");
+    $this->_debug("rename() called.");
     $from = $this->_uri_to_s3_filename($from_uri);
     $to = $this->_uri_to_s3_filename($to_uri);
     
@@ -719,11 +711,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns a string representing a location suitable for writing of a file,
    *   or FALSE if unable to write to the file such as with read-only streams.
    */
-  protected function getTarget($uri=NULL) {
+  protected function getTarget($uri = NULL) {
     if (!isset($uri)) {
       $uri = $this->uri;
     }
-    $this->_test_log("getTarget($uri) called.");
+    $this->_debug("getTarget($uri) called.");
     $data = explode('://', $uri, 2);
     // Remove erroneous leading or trailing forward-slashes and backslashes.
     return count($data) == 2 ? trim($data[1], '\/') : FALSE;
@@ -746,7 +738,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function mkdir($uri, $mode, $options) {
     $this->_assert_constructor_called();
-    $this->_test_log("mkdir($uri, $mode, $options) called.");
+    $this->_debug("mkdir($uri, $mode, $options) called.");
     
     // If this URI already exists in the cache, return TRUE if it's a folder
     // (so that recursive calls won't improperly report failure when they
@@ -788,7 +780,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function rmdir($uri, $options) {
     $this->_assert_constructor_called();
-    $this->_test_log("rmdir($uri, $options) called.");
+    $this->_debug("rmdir($uri, $options) called.");
     if (!$this->_s3fs_is_dir($uri)) {
       return FALSE;
     }
@@ -829,7 +821,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function url_stat($uri, $flags) {
     $this->_assert_constructor_called();
-    $this->_test_log("url_stat($uri, $flags) called.");
+    $this->_debug("url_stat($uri, $flags) called.");
     return $this->_stat($uri);
   }
   
@@ -846,9 +838,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *
    * @see http://php.net/manual/en/streamwrapper.dir-opendir.php
    */
-  public function dir_opendir($uri, $options=NULL) {
+  public function dir_opendir($uri, $options = NULL) {
     $this->_assert_constructor_called();
-    $this->_test_log("dir_opendir($uri, $options) called.");
+    $this->_debug("dir_opendir($uri, $options) called.");
     if (!$this->_s3fs_is_dir($uri)) {
       return FALSE;
     }
@@ -881,7 +873,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.dir-readdir.php
    */
   public function dir_readdir() {
-    $this->_test_log("dir_readdir() called.");
+    $this->_debug("dir_readdir() called.");
     $entry = each($this->dir);
     return $entry ? $entry['value'] : FALSE;
   }
@@ -895,7 +887,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.dir-rewinddir.php
    */
   public function dir_rewinddir() {
-    $this->_test_log("dir_rewinddir() called.");
+    $this->_debug("dir_rewinddir() called.");
     reset($this->dir);
     return TRUE;
   }
@@ -909,7 +901,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.dir-closedir.php
    */
   public function dir_closedir() {
-    $this->_test_log("dir_closedir() called.");
+    $this->_debug("dir_closedir() called.");
     unset($this->dir);
     return TRUE;
   }
@@ -923,7 +915,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   String specifying the path.
    */
   public function getDirectoryPath() {
-    $this->_test_log("getDirectoryPath() called.");
+    $this->_debug("getDirectoryPath() called.");
     return $this->domain;
   }
   
@@ -935,8 +927,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     // Remove both leading and trailing /s. S3 filenames never start with /,
     // and a $uri for a folder might be specified with a trailing /, which
     // we'd need to remove to be able to retrieve it from the cache.
-    $path = trim($filename, '/');
-    return $filename;
+    return trim($filename, '/');
   }
   
   /**
@@ -1025,7 +1016,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_get_object($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_test_log("_s3fs_get_object($uri) called.");
+    //$this->_debug("_s3fs_get_object($uri) called.");
     // For the root directory, just return metadata for a generic folder.
     if ($uri == 's3://' || $uri == 's3:') {
       $metadata = _s3fs_format_metadata('/', array(), TRUE);
@@ -1068,7 +1059,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_read_cache($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_test_log("_s3fs_read_cache($uri) called.");
+    //$this->_debug("_s3fs_read_cache($uri) called.");
     $record = db_query("SELECT * FROM {s3fs_file} WHERE uri = :uri", array(':uri' => $uri))->fetchAssoc();
     return $record ? $record : FALSE;
   }
@@ -1091,7 +1082,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_write_cache($metadata) {
     // Since this is an internal function, don't log it by default.
-    //$this->_test_log("_s3fs_write_cache({$metadata['uri']}) called.");
+    //$this->_debug("_s3fs_write_cache({$metadata['uri']}) called.");
     db_merge('s3fs_file')
       ->key(array('uri' => $metadata['uri']))
       ->fields($metadata)
@@ -1115,7 +1106,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _s3fs_delete_cache($uri) {
     // Since this is an internal function, don't log it by default.
-    //$this->_test_log("_s3fs_delete_cache($uri) called.");
+    //$this->_debug("_s3fs_delete_cache($uri) called.");
     $delete_query = db_delete('s3fs_file');
     if (is_array($uri)) {
       // Build an OR condition to delete all the URIs in one query.
@@ -1146,11 +1137,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Used for testing.
+   * Logging function used for debugging.
    */
-  private static function _test_log($msg) {
-    global $s3fs_testing;
-    if ($s3fs_testing) {
+  private static function _debug($msg) {
+    global $_s3fs_debug;
+    if ($_s3fs_debug) {
       print "TEST: $msg\n";
       flush();
     }

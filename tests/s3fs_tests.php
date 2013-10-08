@@ -11,7 +11,7 @@
  * inside, meaning that the site's file database will be empty, while S3 isn't.
  */
 
-global $s3fs_testing;
+global $_s3fs_debug = FALSE;
 
 function my_assert($condition, $line, $message) {
   if (!$condition) {
@@ -25,12 +25,12 @@ function main() {
     exit(2);
   }
   global $argv, $argc;
-  list($filename, $notest) = parse_arguments($argc, $argv);
+  list($filename, $no_debug) = parse_arguments($argc, $argv);
   
-  global $s3fs_testing;
+  global $_s3fs_debug;
   // Turn on test logging, unless the user said not to.
-  if (!$notest) {
-    $s3fs_testing = TRUE;
+  if (!$no_debug) {
+    $_s3fs_debug = TRUE;
   }
   startUp();
   bootstrap();
@@ -122,7 +122,7 @@ function bootstrap() {
   
   define('DRUPAL_ROOT', getcwd());
   $_SERVER['HTTP_HOST'] = $drupal_base_url['host'];
-  $_SERVER['PHP_SELF'] = $drupal_base_url['path'].'/index.php';
+  $_SERVER['PHP_SELF'] = "{$drupal_base_url['path']}/index.php";
   $_SERVER['REQUEST_URI'] = $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'];
   $_SERVER['REMOTE_ADDR'] = NULL;
   $_SERVER['REQUEST_METHOD'] = NULL;
@@ -139,8 +139,8 @@ function bootstrap() {
 }
 
 function parse_arguments($argc, $argv) {
-  if ($argc < 2 || ($argc == 3 && $argv[2] != 'NOTEST') || $argc > 3) {
-    fwrite(STDERR, "Usage: ". $argv[0] . " <filename> [NOTEST]\n\n");
+  if ($argc < 2 || ($argc == 3 && $argv[2] != '--no-debug') || $argc > 3) {
+    fwrite(STDERR, "Usage: {$argv[0} <filename> [--no-debug]\n\n");
     exit(1);
   }
   if ($argc == 2) {
@@ -150,4 +150,3 @@ function parse_arguments($argc, $argv) {
 }
 
 main();
-?>

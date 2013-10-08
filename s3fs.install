@@ -26,7 +26,7 @@ function s3fs_requirements($phase) {
     'description' => $fopen_allowed ? $ok_message : $error_message,
   );
 
-  # TODO: Add check for awssdk library.
+  // TODO: Add check for awssdk library.
 
   return $requirements;
 }
@@ -99,7 +99,7 @@ function s3fs_schema() {
       'timestamp' => array('timestamp'),
     ),
     'primary key' => array('uri'),
-    'collation' => 'utf8_bin'
+    'collation' => 'utf8_bin',
   );
 
   return $schema;

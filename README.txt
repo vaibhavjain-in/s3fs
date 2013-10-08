@@ -49,4 +49,3 @@ href="https://drupal.org/project/amazons3">AmazonS3</a> module. S3 File System
 is heavily inspired by her great module, but has been re-written from the ground
 up to provide powerful performance improvements and other new features and
 fixes.
-
