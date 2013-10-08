@@ -214,7 +214,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Sets the stream resource URI. URIs are formatted as "s3://key".
    *
-   * @param $uri
+   * @param string $uri
    *   A string containing the URI that should be used for this instance.
    */
   public function setUri($uri) {
@@ -503,7 +503,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Support for feof().
    *
-   * @return
+   * @return bool
    *   TRUE if end-of-file has been reached.
    *
    * @see http://php.net/manual/en/streamwrapper.stream-eof.php
@@ -910,7 +910,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /***************************************************************************
-   INTERNAL FUNCTIONS
+  INTERNAL FUNCTIONS
   ***************************************************************************/
   
   /**
