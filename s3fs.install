@@ -47,6 +47,7 @@ function s3fs_uninstall() {
   variable_del('s3fs_bucket');
   variable_del('s3fs_cname');
   variable_del('s3fs_domain');
+  variable_del('s3fs_use_https');
   variable_del('s3fs_customhost');
   variable_del('s3fs_hostname');
   variable_del('s3fs_torrents');

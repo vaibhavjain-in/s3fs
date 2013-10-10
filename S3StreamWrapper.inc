@@ -157,7 +157,8 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     $this->s3 = _s3fs_get_amazons3_client($this->bucket);
     
     global $is_https;
-    if ($is_https) {
+
+    if ($is_https || variable_get('s3fs_use_https', FALSE)) {
       $scheme = 'https';
       $this->_debug('Using HTTPS.');
     }
