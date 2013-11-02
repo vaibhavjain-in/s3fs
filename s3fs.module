@@ -180,7 +180,7 @@ function s3fs_admin() {
   // Push the button closer to its own description, rather than the fieldset's
   // description, and push the disable checkbox away from the description.
   $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array(
-    '#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline')
+    '#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'),
   );
   
   $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
@@ -293,7 +293,6 @@ function s3fs_image_style_deliver() {
   // acquiring the lock and setting up.
   $success = file_exists($derivative_uri) || image_style_create_derivative($style, $temp_name, $derivative_uri);
   drupal_unlink($temp_name);
-  //$success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
   
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
@@ -340,7 +339,10 @@ function _s3fs_validate_config($bucket) {
   }
   catch (RequestCore_Exception $e){
     if (strstr($e->getMessage(), 'SSL certificate problem')) {
-      form_set_error('s3fs_bucket', t('There was a problem with the SSL certificate. Try setting AWS_CERTIFICATE_AUTHORITY to true in "libraries/awssdk/config.inc.php". You may also have a curl library (e.g. the default shipped with MAMP) that does not contain trust certificates for the major authorities.'));
+      form_set_error('s3fs_bucket', t('There was a problem with the SSL certificate.
+        Try setting AWS_CERTIFICATE_AUTHORITY to true in "libraries/awssdk/config.inc.php".
+        You may also have a curl library (e.g. the default shipped with MAMP) that does not contain trust certificates for the major authorities.')
+      );
       return FALSE;
     }
     else {
