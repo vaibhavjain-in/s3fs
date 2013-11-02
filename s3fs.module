@@ -133,44 +133,62 @@ function s3fs_admin() {
   $form['s3fs_torrents'] = array(
     '#type' => 'textarea',
     '#title' => t('Torrents'),
-    '#description' => t('A list of paths that should be delivered through a torrent url. Enter one value per line, e.g. "mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.', array('@preg_match' => 'http://php.net/preg_match')),
+    '#description' => t('A list of paths that should be delivered through a torrent url. Enter one value per line, e.g. "mydir/*".
+      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.',
+      array('@preg_match' => 'http://php.net/preg_match')),
     '#default_value' => variable_get('s3fs_torrents', ''),
     '#rows' => 10,
   );
   $form['s3fs_presigned_urls'] = array(
     '#type' => 'textarea',
     '#title' => t('Presigned URLs'),
-    '#description' => t('A list of timeouts and paths that should be delivered through a presigned url. Enter one value per line, in the format timeout|path. e.g. "60|mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>. If no timeout is provided, it defaults to 60 seconds.', array('@preg_match' => 'http://php.net/preg_match')),
+    '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.
+      Enter one value per line, in the format timeout|path. e.g. "60|mydir/*".
+      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.
+      If no timeout is provided, it defaults to 60 seconds.',
+      array('@preg_match' => 'http://php.net/preg_match')),
     '#default_value' => variable_get('s3fs_presigned_urls', ''),
     '#rows' => 10,
   );
   $form['s3fs_saveas'] = array(
     '#type' => 'textarea',
     '#title' => t('Force Save As'),
-    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header. Prevents autoplay of media. Enter one value per line. e.g. "mydir/*". Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>. <b>Files must use a presigned url to use this feature.</b>', array('@preg_match' => 'http://php.net/preg_match')),
+    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header.
+      Prevents autoplay of media. Enter one value per line. e.g. "mydir/*".
+      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.
+      <b>Files must use a presigned url to use this feature.</b>', array('@preg_match' => 'http://php.net/preg_match')),
     '#default_value' => variable_get('s3fs_saveas', ''),
     '#rows' => 10,
   );
   
   $form['s3fs_refresh_cache'] = array(
     '#type' => 'fieldset',
-    '#description' => t("The file metadata cache keeps track of every file that S3 File System writes to (and deletes from) the S3 bucket, so that queries for data about those files (checks for existence, filetype, etc.) don't have to hit S3. This speeds up many operations, most noticeably anything related to images and their derivatives."),
+    '#description' => t("The file metadata cache keeps track of every file that S3 File System writes to (and deletes from) the S3 bucket,
+      so that queries for data about those files (checks for existence, filetype, etc.) don't have to hit S3.
+      This speeds up many operations, most noticeably anything related to images and their derivatives."),
     '#title' => t('File Metadata Cache'),
   );
   $form['s3fs_refresh_cache']['refresh'] = array(
     '#type' => 'submit',
-    '#suffix' => '<div class="refresh">' . t("This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket, and saves it to the database. This may take a while for buckets with many thousands of files. <br>It should only be necessary to use this button if you've just installed S3 File System and you need to cache all the pre-existing files in your bucket, or if you need to restore your metadata cache from scratch for some other reason.") . '</div>',
+    '#suffix' => '<div class="refresh">' . t("This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket, and saves it to the database.
+      This may take a while for buckets with many thousands of files. <br>
+      It should only be necessary to use this button if you've just installed S3 File System and you need to cache all the pre-existing files in your bucket,
+      or if you need to restore your metadata cache from scratch for some other reason.") . '</div>',
     '#value' => t('Refresh file metadata cache'),
     '#submit' => array('s3fs_refresh_cache_submit'),
   );
   // Push the button closer to its own description, rather than the fieldset's
   // description, and push the disable checkbox away from the description.
-  $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array('#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'));
+  $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array(
+    '#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline')
+  );
   
   $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Ignore the file metadata cache'),
-    '#description'   => t("If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache. This will make all filesystem reads hit S3 instead of the cache. Please be aware that this will cause an enormous performance loss, and should never be enabled on a production site."),
+    '#description'   => t("If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache.
+       This will make all filesystem reads hit S3 instead of the cache. Please be aware that this will cause an enormous performance loss,
+       and should never be enabled on a production site."),
     '#default_value' => variable_get('s3fs_ignore_cache', 0),
   );
   
@@ -213,8 +231,7 @@ function s3fs_refresh_cache_submit($form, &$form_state) {
 }
 
 /**
- * Page callback: Generates a derivative in S3, given a style and image path,
- * and then redirects to the generated file.
+ * Generates an image derivative in S3.
  *
  * This is a re-write of the core Image module's image_style_deliver() function.
  * It exists to improve the performance of serving newly-created image
@@ -246,6 +263,17 @@ function s3fs_image_style_deliver() {
   $image_uri = "s3://$filename";
   $derivative_uri = image_style_path($style['name'], $image_uri);
   
+  // Copy the image from S3 into a local temporary file.
+  $data = file_get_contents($image_uri);
+  $temp_name = drupal_tempnam('temporary://', 's3image');
+  if (file_put_contents($temp_name, $data) === FALSE) {
+    drupal_set_message(t('The file could not be created.'), 'error');
+    watchdog('s3fs', 'Unable to store original image %path to a temporary location for image style generation.', array('%path' => $image_uri));
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    print t('Error generating image.');
+    drupal_exit();
+  }
+  
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
   $lock_name = 's3fs_image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
@@ -262,8 +290,10 @@ function s3fs_image_style_deliver() {
   }
   
   // Try to generate the image, unless another thread just did it while we were
-  // acquiring the lock.
-  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
+  // acquiring the lock and setting up.
+  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $temp_name, $derivative_uri);
+  drupal_unlink($temp_name);
+  //$success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
   
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
@@ -274,7 +304,7 @@ function s3fs_image_style_deliver() {
     drupal_goto(file_create_url($derivative_uri));
   }
   else {
-    watchdog('image', 'Unable to generate the derived image located at %path.', array('%path' => $derivative_uri));
+    watchdog('s3fs', 'Unable to generate the derived image located at %path.', array('%path' => $derivative_uri));
     drupal_add_http_header('Status', '500 Internal Server Error');
     print t('Error generating image.');
     drupal_exit();
@@ -327,6 +357,8 @@ function _s3fs_validate_config($bucket) {
 }
 
 /**
+ * Refreshes the metadata cache.
+ *
  * Calls AmazonS3::list_objects() enough times to get all the files in the
  * specified bucket (the API returns at most 1000 per call), and stores their
  * metadata in the cache table. Then it builds the list of folders by analyzing
@@ -451,8 +483,7 @@ function _s3fs_refresh_cache($bucket) {
 }
 
 /**
- * Convert file metadata returned from S3 into an array appropriate
- * for insertion into our file metadata cache.
+ * Convert file metadata returned from S3 into a metadata cache array.
  *
  * @param string $uri
  *   A string containing the uri of the resource to check.
@@ -497,8 +528,7 @@ function _s3fs_format_metadata($uri, $s3_metadata) {
 }
 
 /**
- * Converts objects returned by AmazonS3::get_objects() into s3 metadata arrays
- * compatible with those returned by AmazonS3::get_object_metadata().
+ * Converts an AmazonS3 metadata object into a metadata cache array.
  */
 function _s3fs_s3_object_to_s3_metadata($object) {
   // This is an "icky" but effective way to do a deep conversion of
@@ -510,8 +540,7 @@ function _s3fs_s3_object_to_s3_metadata($object) {
 class AWSException extends Exception {}
 
 /**
- * Performs all the necessary steps to create and configure an AmazonS3 client
- * object, and returns it to the caller.
+ * Sets up the AmazonS3 client.
  *
  * For performance reasons, only one AmazonS3 client object will ever be created
  * within a single request.

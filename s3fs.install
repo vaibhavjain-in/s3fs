@@ -29,9 +29,9 @@ function s3fs_requirements($phase) {
   if ($phase == 'runtime') {
     $int64_ok = (PHP_INT_MAX === 9223372036854775807);
     $requirements['s3fs_int64'] = array(
-      'title' => t('Support caching S3 file data for files larger than 2GB'),
-      'value' => $int64_ok ? t('Available') : t('Unavailable'),
-      'description' => t('A 64-bit PHP installation is required in order to support files larger than 2GB.'),
+      'title' => $t('Support caching S3 file data for files larger than 2GB'),
+      'value' => $int64_ok ? $t('Available') : $t('Unavailable'),
+      'description' => $t('A 64-bit PHP installation is required in order to support files larger than 2GB.'),
       'severity' => $int64_ok ? REQUIREMENT_OK : REQUIREMENT_WARNING,
     );
   }

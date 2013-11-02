@@ -38,7 +38,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * @var int Total size of the object as returned by S3 (Content-Length)
    */
-  protected $object_size = 0;
+  protected $objectSize = 0;
   
   /**
    * @var string Object read/write buffer, typically a file.
@@ -46,20 +46,15 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   protected $buffer = NULL;
   
   /**
-   * @var bool Whether $buffer is active as a write buffer.
-   */
-  protected $buffer_write = FALSE;
-  
-  /**
    * @var int Buffer length.
    */
-  protected $buffer_length = 0;
+  protected $bufferLength = 0;
   
   /**
    * Records the number of calls to stream_write() between each call to
    * stream_flush(), for testing purposes.
    */
-  protected $sw_call_count = 0;
+  protected $swCallCount = 0;
     
   /**
    * @var array directory listing.
@@ -81,7 +76,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @var array Map for files that should be created with a URL that times
    * out in a designated number of seconds.
    */
-  protected $presigned_urls = array();
+  protected $presignedURLs = array();
   
   /**
    * @var bool The constructor sets this to TRUE once it's finished.
@@ -92,7 +87,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * @var array Default map for determining file mime types.
    */
-  protected static $mime_type_mapping = NULL;
+  protected static $mimeTypeMapping = NULL;
   
   /**
    * Static function to determine a file's media type.
@@ -106,14 +101,14 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   public static function getMimeType($uri, $mapping = NULL) {
     self::_debug("getMimeType($uri, $mapping) called.");
     // Load the default mime type map.
-    if (!isset(self::$mime_type_mapping)) {
+    if (!isset(self::$mimeTypeMapping)) {
       include_once DRUPAL_ROOT . '/includes/file.mimetypes.inc';
-      self::$mime_type_mapping = file_mimetype_mapping();
+      self::$mimeTypeMapping = file_mimetype_mapping();
     }
     
     // If a mapping wasn't specified, use the default map.
     if ($mapping == NULL) {
-      $mapping = self::$mime_type_mapping;
+      $mapping = self::$mimeTypeMapping;
     }
     
     $extension = '';
@@ -193,15 +188,15 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     $presigned_urls = explode("\n", variable_get('s3fs_presigned_urls', ''));
     $presigned_urls = array_map('trim', $presigned_urls);
     $presigned_urls = array_filter($presigned_urls, 'strlen');
-    $this->presigned_urls = array();
+    $this->presignedURLs = array();
     foreach ($presigned_urls as $presigned_url) {
       // Check for an explicit key.
       $matches = array();
       if (preg_match('/(.*)\|(.*)/', $presigned_url, $matches)) {
-        $this->presigned_urls[$matches[2]] = $matches[1];
+        $this->presignedURLs[$matches[2]] = $matches[1];
       }
       else {
-        $this->presigned_urls[$presigned_url] = 60;
+        $this->presignedURLs[$presigned_url] = 60;
       }
     }
     
@@ -270,9 +265,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     // Allow other modules to change the download link type.
     $info = array_merge($info, module_invoke_all('s3fs_url_info', $s3_filename, $info));
     
-    //////////////////////////////
-    // Overrides from the Admin UI
-    //////////////////////////////
+    /****************************
+     Overrides from the Admin UI
+    ****************************/
     // Torrent URLs.
     if ($info['download_type'] != 'torrent') {
       foreach ($this->torrents as $path) {
@@ -284,7 +279,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     }
     // Presigned URLs.
     if (!$info['presigned_url']) {
-      foreach ($this->presigned_urls as $path => $timeout) {
+      foreach ($this->presignedURLs as $path => $timeout) {
         if (preg_match('#' . strtr($path, '#', '\#') . '#', $s3_filename)) {
           $info['presigned_url'] = TRUE;
           $info['presigned_url_timeout'] = $timeout;
@@ -304,10 +299,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     }
     
     $timeout = $info['presigned_url'] ? time() + $info['presigned_url_timeout'] : 0;
-    $torrent = ($info['download_type'] == 'torrent') ? TRUE : FALSE;
     $response = $info['presigned_url'] ? $info['response'] : array();
     if ($info['presigned_url'] || $info['download_type'] != 'http' || !empty($info['response'])) {
-      $url = $this->s3->get_object_url($this->bucket, $s3_filename, $timeout, array('torrent' => $torrent, 'response' => $response));
+      $url = $this->s3->get_object_url($this->bucket, $s3_filename, $timeout, array('torrent' => ($info['download_type'] == 'torrent'), 'response' => $response));
       return $url;
     }
     
@@ -316,6 +310,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
    * Changes permissions of the resource.
+   *
    * This wrapper doesn't support the concept of filesystem permissions.
    *
    * @param int $mode
@@ -406,7 +401,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     if ($metadata) {
       $this->_clear_buffer();
       $this->write_buffer = FALSE;
-      $this->object_size = $metadata['filesize'];
+      $this->objectSize = $metadata['filesize'];
       return TRUE;
     }
     
@@ -456,24 +451,24 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_read($count) {
     $this->_debug("stream_read($count) called.");
     // Make sure that count doesn't exceed object size.
-    if ($count + $this->position > $this->object_size) {
-      $count = $this->object_size - $this->position;
+    if ($count + $this->position > $this->objectSize) {
+      $count = $this->objectSize - $this->position;
     }
     $data = '';
     if ($count > 0) {
       $range_end = $this->position + $count - 1;
-      if ($range_end > $this->buffer_length) {
+      if ($range_end > $this->bufferLength) {
         $opts = array(
           'range' => "{$this->position}-$range_end",
         );
         $response = $this->s3->get_object($this->bucket, $this->_uri_to_s3_filename($this->uri), $opts);
         if ($response->isOK()) {
           $this->buffer .= $response->body;
-          $this->buffer_length += strlen($response->body);
+          $this->bufferLength += strlen($response->body);
         }
       }
       if (isset($response)) {
-        $data = substr($response->body, 0, min($count, $this->object_size));
+        $data = substr($response->body, 0, min($count, $this->objectSize));
         $this->position += strlen($data);
       }
     }
@@ -492,11 +487,11 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-write.php
    */
   public function stream_write($data) {
-    $this->sw_call_count++;
+    $this->swCallCount++;
     
     $data_length = strlen($data);
     $this->buffer .= $data;
-    $this->buffer_length += $data_length;
+    $this->bufferLength += $data_length;
     $this->position += $data_length;
     return $data_length;
   }
@@ -514,7 +509,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     if (!$this->uri) {
       return TRUE;
     }
-    return ($this->position >= $this->object_size);
+    return ($this->position >= $this->objectSize);
   }
   
   /**
@@ -540,7 +535,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
         
       case SEEK_END:
         // Set position to eof plus $offset.
-        $new_position = $this->object_size + $offset;
+        $new_position = $this->objectSize + $offset;
         break;
         
       case SEEK_SET:
@@ -550,7 +545,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
         break;
     }
     
-    $ret = ($new_position >= 0 && $new_position <= $this->object_size);
+    $ret = ($new_position >= 0 && $new_position <= $this->objectSize);
     if ($ret) {
       $this->position = $new_position;
     }
@@ -566,8 +561,8 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-flush.php
    */
   public function stream_flush() {
-    $this->_debug("stream_flush() called after {$this->sw_call_count} calls to stream_write().");
-    $this->sw_call_count = 0;
+    $this->_debug("stream_flush() called after {$this->swCallCount} calls to stream_write().");
+    $this->swCallCount = 0;
     
     // TODO: If we ever support Drupal's per user space limits, we'll need to
     // call file_validate_size() in here before writing to S3.
@@ -899,6 +894,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
    * Gets the path that the wrapper is responsible for.
+   *
    * Even though this function isn't specified in DrupalStreamWrapperInterface,
    * Drupal's code calls it on all wrappers, so we need to define it.
    *
@@ -930,10 +926,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected function _clear_buffer() {
     $this->position = 0;
-    $this->object_size = 0;
+    $this->objectSize = 0;
     $this->buffer = NULL;
-    $this->buffer_write = FALSE;
-    $this->buffer_length = 0;
+    $this->bufferLength = 0;
   }
   
   /**
@@ -996,8 +991,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Try to fetch an object from the metadata cache. If that file isn't in the
-   * cache, it is considered to be nonexistant.
+   * Try to fetch an object from the metadata cache.
+   *
+   * If that file isn't in the cache, we assume it doesn't exist.
    *
    * @param string $uri
    *   A string containing the uri of the resource to check.
@@ -1006,9 +1002,6 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   An array if the $uri exists, otherwise FALSE.
    */
   protected function _s3fs_get_object($uri) {
-    // Since this is an internal function, don't log it by default.
-    // $this->_debug("_s3fs_get_object($uri) called.");
-    
     // For the root directory, just return metadata for a generic folder.
     if ($uri == 's3://' || $uri == 's3:') {
       $metadata = _s3fs_format_metadata('/', array(), TRUE);
@@ -1057,8 +1050,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Write an object's metadata to the cache. Also write its ancestor folders
-   * to the cache.
+   * Write an object's (and its ancestor folders') metadata to the cache.
    *
    * @param array $metadata
    *   An associative array of file metadata, in this format:

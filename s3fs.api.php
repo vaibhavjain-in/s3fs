@@ -13,8 +13,9 @@
  */
 
 /**
- * Allows other modules to change the format and options used when
- * creating an external URL. For example the URL can be a URL directly to the
+ * Alters the format and options used when creating an external URL.
+ *
+ * For example the URL can be a URL directly to the
  * file, or can be a URL to a torrent. In addition, it can be authenticated
  * (time limited), and in that case a save-as can be forced.
  *
