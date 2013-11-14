@@ -11,83 +11,113 @@
 class S3StreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
-   * @var string Instance URI referenced as "s3://key"
+   * Instance URI referenced as "s3://key".
+   *
+   * @var string
    */
   protected $uri;
   
   /**
-   * @var AmazonS3 An alias for self::$s3_client.
+   * An alias for self::$s3_client.
+   *
+   * @var AmazonS3
    */
   protected $s3 = NULL;
   
   /**
-   * @var string S3 bucket name.
+   * S3 bucket name.
+   *
+   * @var string
    */
   protected $bucket;
   
   /**
-   * @var string Domain we use to access files over http.
+   * Domain we use to access files over http.
+   *
+   * @var string
    */
   protected $domain = NULL;
   
   /**
-   * @var int Current read/write position.
+   * Current read/write position.
+   *
+   * @var int
    */
   protected $position = 0;
   
   /**
-   * @var int Total size of the object as returned by S3 (Content-Length)
+   *  Total size of the object as returned by S3 (Content-Length).
+   *
+   * @var int
    */
   protected $objectSize = 0;
   
   /**
-   * @var string Object read/write buffer, typically a file.
+   * Object read/write buffer, typically a file.
+   *
+   * @var string
    */
   protected $buffer = NULL;
   
   /**
-   * @var int Buffer length.
+   * Buffer length.
+   *
+   * @var int
    */
   protected $bufferLength = 0;
   
   /**
    * Records the number of calls to stream_write() between each call to
    * stream_flush(), for testing purposes.
+   *
+   * @var int
    */
   protected $swCallCount = 0;
     
   /**
-   * @var array directory listing.
+   * Directory listing used by the dir_* methods.
+   *
+   * @var array
    */
   protected $dir = NULL;
   
   /**
-   * @var array Map for files that should be delivered with a torrent URL.
+   * Map for files that should be delivered with a torrent URL.
+   *
+   * @var array
    */
   protected $torrents = array();
   
   /**
-   * @var array Map for files that should have their Content-Disposition header
-   * set to force "save as".
+   * Files that the user has said must be downloaded, rather than viewed.
+   *
+   * @var array
    */
   protected $saveas = array();
   
   /**
-   * @var array Map for files that should be created with a URL that times
-   * out in a designated number of seconds.
+   * Files which should be created with URLs that eventually time out.
+   *
+   * @var array
    */
   protected $presignedURLs = array();
   
   /**
-   * @var bool The constructor sets this to TRUE once it's finished.
-   * See the comment for _assert_constructor_called() for why this exists.
+   * The constructor sets this to TRUE once it's finished.
+   *
+   * See the comment on _assert_constructor_called() for why this exists.
+   *
+   * @var bool
    */
   protected $constructed = FALSE;
   
   /**
-   * @var array Default map for determining file mime types.
+   * Default map for determining file mime types.
+   *
+   * @var array
    */
   protected static $mimeTypeMapping = NULL;
+  
   
   /**
    * Static function to determine a file's media type.
@@ -266,7 +296,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     $info = array_merge($info, module_invoke_all('s3fs_url_info', $s3_filename, $info));
     
     /****************************
-     Overrides from the Admin UI
+    Overrides from the Admin UI
     ****************************/
     // Torrent URLs.
     if ($info['download_type'] != 'torrent') {
@@ -778,16 +808,23 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       $uri .= '/';
     }
     
-    $query = db_query("SELECT * FROM {s3fs_file} WHERE uri LIKE :folder", array(':folder' => "$uri%"));
-    $files = $query->fetchAll();
+    $files = db_select('s3fs_file', 's')
+      ->fields('s')
+      ->condition('uri', db_like($uri) . '%', 'LIKE')
+      ->execute()
+      ->fetchAll(PDO::FETCH_ASSOC);
+    
+    // If the folder is empty, it's eligible for deletion.
     if (empty($files)) {
-      // This folder is empty, so it's elegible for deletion.
       $result = db_delete('s3fs_file')
         ->condition('uri', rtrim($uri, '/'), '=')
         ->execute();
       return (bool) $result;
     }
-    return FALSE;
+    else {
+      // It's illegal to rmdir a non-empty directory.
+      return FALSE;
+    }
   }
   
   /**
@@ -839,13 +876,19 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     
     // Get the list of uris for files and folders which are in the specified
     // folder, but not in any of its subfolders.
-    $query = db_query("SELECT uri FROM {s3fs_file} WHERE uri LIKE :folder AND uri NOT LIKE :subfolder",
-        array(':folder' => "$uri%", ':subfolder' => "$uri%/%"));
+    $and = db_and();
+    $and->condition('uri', db_like($uri) . '%', 'LIKE');
+    $and->condition('uri', db_like($uri) . '%/%', 'NOT LIKE');
+    $uris = db_select('s3fs_file', 's')
+      ->fields('s', array('uri'))
+      ->condition($and)
+      ->execute()
+      ->fetchAll(PDO::FETCH_COLUMN, 0);
     
-    // Create $this->dir as an empty array, since the folder might be empty.
+    // Start with $this->dir as an empty array, since the folder might be empty.
     $this->dir = array();
-    foreach ($query->fetchAll(PDO::FETCH_COLUMN, 0) as $uri) {
-      $this->dir[] = basename($uri);
+    foreach ($uris as $u) {
+      $this->dir[] = basename($u);
     }
     return TRUE;
   }
@@ -1043,9 +1086,13 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   An array of metadata if the $uri is in the cache, otherwise FALSE.
    */
   protected function _s3fs_read_cache($uri) {
-    // Since this is an internal function, don't log it by default.
+    // Since this is an internal function, don't debug log it by default.
     // $this->_debug("_s3fs_read_cache($uri) called.");
-    $record = db_query("SELECT * FROM {s3fs_file} WHERE uri = :uri", array(':uri' => $uri))->fetchAssoc();
+    $record = db_select('s3fs_file', 's')
+      ->fields('s')
+      ->condition('uri', $uri, '=')
+      ->execute()
+      ->fetchAssoc();
     return $record ? $record : FALSE;
   }
   
@@ -1065,7 +1112,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    *   Exceptions which occur in the database call will percolate.
    */
   protected function _s3fs_write_cache($metadata) {
-    // Since this is an internal function, don't log it by default.
+    // Since this is an internal function, don't debug log it by default.
     // $this->_debug("_s3fs_write_cache({$metadata['uri']}) called.");
     db_merge('s3fs_file')
       ->key(array('uri' => $metadata['uri']))
@@ -1081,15 +1128,15 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Delete an object's metadata from the cache.
    *
-   * @param string $uri
-   *   The URI of the object to be deleted. Also accepts an array of URIs
+   * @param mixed $uri
+   *   A string (or array of strings) containing the URI(s) of the object(s)
    *   to be deleted.
    *
    * @throws
    *   Exceptions which occur in the database call will percolate.
    */
   protected function _s3fs_delete_cache($uri) {
-    // Since this is an internal function, don't log it by default.
+    // Since this is an internal function, don't debug log it by default.
     // $this->_debug("_s3fs_delete_cache($uri) called.");
     $delete_query = db_delete('s3fs_file');
     if (is_array($uri)) {
