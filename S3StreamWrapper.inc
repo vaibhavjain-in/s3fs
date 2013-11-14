@@ -195,6 +195,9 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     if (variable_get('s3fs_cname', FALSE)) {
       $domain = check_url(variable_get('s3fs_domain', ''));
       if ($domain) {
+        if (variable_get('s3fs_allow_relative', FALSE) && strpos($domain, '/') === 0) {
+          $domain = $_SERVER['HTTP_HOST'] . $domain;
+        }
         $this->domain = "$scheme://$domain";
       }
       else {
@@ -883,7 +886,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
       ->fields('s', array('uri'))
       ->condition($and)
       ->execute()
-      ->fetchAll(PDO::FETCH_COLUMN, 0);
+      ->fetchCol(0);
     
     // Start with $this->dir as an empty array, since the folder might be empty.
     $this->dir = array();

@@ -114,6 +114,12 @@ function s3fs_admin() {
     '#description'    => t('Forces S3 File System to always generate HTTPS URLs for files in your bucket, e.g. "https://mybucket.s3.amazonaws.com/smiley.jpg".'),
     '#default_value'  => variable_get('s3fs_use_https', FALSE),
   );
+  $form['s3fs_allow_relative'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Allow root-relative paths for s3 files'),
+    '#description'    => t('Allows S3 File System to generate relative URLs to files in your bucket, e.g. "/images/smiley.jpg". This will only have any meaning if you use a CNAME setting that sets the domin the same as your drupal site\'s domain.'),
+    '#default_value'  => variable_get('s3fs_allow_relative', FALSE),
+  );
   $form['s3fs_customhost'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Use a Custom Hostname'),
@@ -193,7 +199,12 @@ function s3fs_admin() {
     '#default_value' => variable_get('s3fs_ignore_cache', 0),
   );
   
-  return system_settings_form($form);
+  
+  // Add the compatilibity callback after calling system_settings_form(), so
+  // it will be called after the default system settings submit function.
+  $form = system_settings_form($form);
+  $form['#submit'][] = 's3fs_amazons3_api_compatibility_submit';
+  return $form;
 }
 
 /**
@@ -217,6 +228,26 @@ function s3fs_admin_validate($form, &$form_state) {
   }
 }
 
+/**
+ * Supplemental submit callback for the "Save" button on the admin form.
+ *
+ * Copies all s3fs_* variables to variables with amazons3_* names,
+ * in order to preserve API compatibility with AmazonS3.
+ * AmazonS3 can be found here: https://drupal.org/project/amazons3
+ */
+function s3fs_amazons3_api_compatibility_submit($form, &$form_state) {
+  $variable_names = db_select('variable', 'v')
+    ->fields('v', array('name'))
+    ->condition('name', 's3fs_%', 'LIKE')
+    ->execute()
+    ->fetchCol(0);
+  foreach ($variable_names as $name) {
+    $value = variable_get($name);
+    $amazons3_name = str_replace('s3fs_', 'amazons3_', $name);
+    variable_set($amazons3_name, $value);
+  }
+}
+ 
 /**
  * Submit callback for the "Refresh file metadata cache" button.
  */
@@ -322,7 +353,8 @@ function _s3fs_validate_config($bucket) {
   try {
     // Test the connection to S3.
     $user_id = $s3->get_canonical_user_id();
-    if (empty($user_id['id'])) {
+    $use_instance_profile = variable_get('aws_use_instance_profile', FALSE);
+    if (!$use_instance_profile && empty($user_id['id'])) {
       form_set_error('s3fs_bucket', t('The specified S3 access credentials are invalid.'));
       return FALSE;
     }
@@ -469,7 +501,7 @@ function _s3fs_refresh_cache($bucket) {
       ->fields('s', array('uri'))
       ->condition('dir', 0, '=')
       ->execute()
-      ->fetchAll(PDO::FETCH_COLUMN, 0);
+      ->fetchCol(0);
   $directories = array();
   foreach ($uris as $uri) {
     // Record each file's parent directory name.
