@@ -170,7 +170,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
    * the S3 File System admin page.
    */
   public function __construct() {
-    $this->bucket = variable_get('s3fs_bucket', '');
+    $this->bucket = check_url(variable_get('s3fs_bucket', ''));
     if (empty($this->bucket)) {
       $msg = t('Your AmazonS3 bucket name is not configured. Please visit the !config_page.',
         array('!config_page' => l(t('configuration page'), '/admin/config/media/s3fs')));
@@ -193,7 +193,7 @@ class S3StreamWrapper implements DrupalStreamWrapperInterface {
     }
     // CNAME support for customizing S3 URLs.
     if (variable_get('s3fs_cname', FALSE)) {
-      $domain = variable_get('s3fs_domain', '');
+      $domain = check_url(variable_get('s3fs_domain', ''));
       if ($domain) {
         $this->domain = "$scheme://$domain";
       }

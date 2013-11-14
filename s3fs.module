@@ -8,12 +8,10 @@
 /**
  * The version number of the current release.
  */
-define('S3FS_VERSION', '7.x-0.1-dev');
+define('S3FS_VERSION', '7.x-0.2-dev');
 
 /**
  * Implements hook_stream_wrappers().
- *
- * Create a stream wrapper for S3.
  */
 function s3fs_stream_wrappers() {
   return array(
@@ -68,12 +66,15 @@ function s3fs_permission() {
 function s3fs_help($path, $arg) {
   if ($path == 'admin/config/media/s3fs') {
     if (module_exists('awssdk_ui')) {
-      return '<p>' . t('Amazon Web Services authentication can be configured on the <a href="@awssdk_config">AWS SDK configuration page</a>.',
-        array('@awssdk_config' => url('admin/config/media/awssdk'))) . '</p>';
+      return '<p>' .
+        t('Amazon Web Services authentication can be configured on the !link.', array('!link' => l('AWS SDK configuration page', 'admin/config/media/awssdk'))) .
+        '</p>';
     }
     else {
-      return '<p>' . t("To configure your Amazon Web Services credentials, enable the 'AWS SDK for PHP UI' module,
-        or define those settings in the \$conf array in your site's settings.php file.") . '</p>';
+      return '<p>' .
+        t('To configure your Amazon Web Services credentials, enable the "AWS SDK for PHP UI" module,
+        or define those settings in the $conf array in your site\'s settings.php file.') .
+        '</p>';
     }
   }
 }
@@ -134,8 +135,8 @@ function s3fs_admin() {
     '#type' => 'textarea',
     '#title' => t('Torrents'),
     '#description' => t('A list of paths that should be delivered through a torrent url. Enter one value per line, e.g. "mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.',
-      array('@preg_match' => 'http://php.net/preg_match')),
+      Paths are relative to the Drupal file directory and use patterns as per !link.',
+      array('!link' => l('preg_match', 'http://php.net/preg_match'))),
     '#default_value' => variable_get('s3fs_torrents', ''),
     '#rows' => 10,
   );
@@ -144,9 +145,9 @@ function s3fs_admin() {
     '#title' => t('Presigned URLs'),
     '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.
       Enter one value per line, in the format timeout|path. e.g. "60|mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.
+      Paths are relative to the Drupal file directory and use patterns as per !link.
       If no timeout is provided, it defaults to 60 seconds.',
-      array('@preg_match' => 'http://php.net/preg_match')),
+      array('!link' => l('preg_match', 'http://php.net/preg_match'))),
     '#default_value' => variable_get('s3fs_presigned_urls', ''),
     '#rows' => 10,
   );
@@ -155,8 +156,8 @@ function s3fs_admin() {
     '#title' => t('Force Save As'),
     '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header.
       Prevents autoplay of media. Enter one value per line. e.g. "mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per <a href="@preg_match">preg_match</a>.
-      <b>Files must use a presigned url to use this feature.</b>', array('@preg_match' => 'http://php.net/preg_match')),
+      Paths are relative to the Drupal file directory and use patterns as per !link.
+      <b>Files must use a presigned url to use this feature.</b>', array('!link' => l('preg_match', 'http://php.net/preg_match'))),
     '#default_value' => variable_get('s3fs_saveas', ''),
     '#rows' => 10,
   );
@@ -199,17 +200,15 @@ function s3fs_admin() {
  * Validates the values on the admin form.
  */
 function s3fs_admin_validate($form, &$form_state) {
-  $form_state['values']['s3fs_bucket'] = filter_xss($form_state['values']['s3fs_bucket']);
-  
   $orig_customhost = variable_get('s3fs_customhost', NULL);
   $orig_hostname = variable_get('s3fs_hostname', NULL);
-  $use_temp = variable_get('s3fs_customhost') !== $form_state['values']['s3fs_customhost'] || variable_get('s3fs_hostname') !== $form_state['values']['s3fs_hostname'];
+  $use_temp = (variable_get('s3fs_customhost') !== $form_state['values']['s3fs_customhost'] || variable_get('s3fs_hostname') !== $form_state['values']['s3fs_hostname']);
   if ($use_temp) {
-    // IF the user changed then, temporarily set the s3fs_customhost and
-    // s3fs_hostname variables to their values in the form, so that
-    // _s3fs_get_amazons3_client() can get their new values during validation.
+    // If they're different in the form, temporarily set s3fs_customhost and
+    // s3fs_hostname to their form values, so that _s3fs_get_amazons3_client()
+    // can use their new values during validation.
     variable_set('s3fs_customhost', $form_state['values']['s3fs_customhost']);
-    variable_set('s3fs_hostname', filter_xss($form_state['values']['s3fs_hostname']));
+    variable_set('s3fs_hostname', $form_state['values']['s3fs_hostname']);
   }
   _s3fs_validate_config($form_state['values']['s3fs_bucket']);
   if ($use_temp) {
@@ -219,14 +218,9 @@ function s3fs_admin_validate($form, &$form_state) {
 }
 
 /**
- * Submit callback for the refresh file metadata cache button.
+ * Submit callback for the "Refresh file metadata cache" button.
  */
 function s3fs_refresh_cache_submit($form, &$form_state) {
-  $form_state['values']['s3fs_domain']         = filter_xss($form_state['values']['s3fs_domain']);
-  $form_state['values']['s3fs_torrents']       = filter_xss($form_state['values']['s3fs_torrents']);
-  $form_state['values']['s3fs_saveas']         = filter_xss($form_state['values']['s3fs_saveas']);
-  $form_state['values']['s3fs_presigned_urls'] = filter_xss($form_state['values']['s3fs_presigned_urls']);
-  $form_state['values']['s3fs_bucket']         = filter_xss($form_state['values']['s3fs_bucket']);
   _s3fs_refresh_cache($form_state['values']['s3fs_bucket']);
 }
 
@@ -333,7 +327,7 @@ function _s3fs_validate_config($bucket) {
       return FALSE;
     }
     elseif (!$s3->if_bucket_exists($bucket)) {
-      form_set_error('s3fs_bucket', t('The bucket "@bucket" does not exist.', array('@bucket' => $bucket)));
+      form_set_error('s3fs_bucket', t('The bucket %bucket does not exist.', array('%bucket' => $bucket)));
       return FALSE;
     }
   }
@@ -346,12 +340,12 @@ function _s3fs_validate_config($bucket) {
       return FALSE;
     }
     else {
-      form_set_error('s3fs_bucket', t('There was a problem connecting to S3: @error', array('@error' => $e->getMessage())));
+      form_set_error('s3fs_bucket', t('There was a problem connecting to S3: %error', array('%error' => $e->getMessage())));
       return FALSE;
     }
   }
   catch (Exception $e) {
-    form_set_error('s3fs_bucket', t('There was an unexpected problem using S3: @error', array('@error' => $e->getMessage())));
+    form_set_error('s3fs_bucket', t('There was an unexpected problem using S3: %error', array('%error' => $e->getMessage())));
     return FALSE;
   }
 
@@ -391,7 +385,7 @@ function _s3fs_refresh_cache($bucket) {
     
     $response = $s3->list_objects($bucket, $args);
     if (!$response->isOK()) {
-      drupal_set_message(t('Metadata cache refresh aborted. A @code error occurred: @error.', array('@code' => $response->status, '@error' => $response->body->Message)), 'error');
+      drupal_set_message(t('Metadata cache refresh aborted. A %code error occurred: %error.', array('%code' => $response->status, '%error' => $response->body->Message)), 'error');
       return;
     }
     $file_metadata_list = array();
@@ -444,9 +438,12 @@ function _s3fs_refresh_cache($bucket) {
               ->execute();
           }
           catch (PDOException $e) {
-            drupal_set_message(t("The file @uri has the same name as another file in S3, but with different capitalization.
+            drupal_set_message(
+              t("The file %uri has the same name as another file in S3, but with different capitalization.
               If you haven't done so already, be sure to run the database update script (drush updb).
-              If you've already done that, something is very wrong, and you should post a ticket to the S3 File System issue queue.", array('@uri' => $metadata['uri'])), 'warning');
+              If you've already done that, something is very wrong, and you should post a ticket to the S3 File System issue queue.",
+              array('%uri' => $metadata['uri'])), 'warning'
+            );
           }
         }
       }
