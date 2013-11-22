@@ -13,12 +13,18 @@
 
 global $_s3fs_debug;
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_assert($condition, $line, $message) {
   if (!$condition) {
     throw new Exception("ASSERT FAILED on Line $line: \"$message\"");
   }
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_main() {
   if (!file_exists('cron.php')) {
     print "This script must be run from your drupal site's root directory";
@@ -37,6 +43,9 @@ function _s3fs_main() {
   _s3fs_upload_test($filename);
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_upload_test($filename) {
   $uploaded_uri = "s3://_s3fs_test/test_file.jpg";
   $uploaded_uri2 = "s3://_s3fs_test/test_file2.jpg";
@@ -75,7 +84,7 @@ function _s3fs_upload_test($filename) {
 
   _s3fs_test_print('Exercising the dir_*() functions.');
   // Add a second file to the folder.
-  $s3_file2 = file_save_data($file_contents, $uploaded_uri2, FILE_EXISTS_REPLACE);
+  file_save_data($file_contents, $uploaded_uri2, FILE_EXISTS_REPLACE);
   $files = file_scan_directory('s3://_s3fs_test', '#.*#');
   _s3fs_assert(isset($files[$uploaded_uri]), __LINE__, 'The file we uploaded is not being reported as an element of the testing directory.');
   $file_count = count($files);
@@ -108,16 +117,25 @@ function _s3fs_upload_test($filename) {
   _s3fs_test_print('S3 test complete');
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_test_print($str) {
   print "$str\n";
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_startup() {
   ini_set('display_errors', 'TRUE');
   ini_set('display_startup_errors', 'TRUE');
   ini_set('max_execution_time', 18000);
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_bootstrap() {
   $username = "admin";
   $drupal_base_url = parse_url('http://localhost/');
@@ -140,6 +158,9 @@ function _s3fs_bootstrap() {
   $user = user_load(array('name' => $username));
 }
 
+/**
+ * Arbitrary doc comment.
+ */
 function _s3fs_parse_arguments($argc, $argv) {
   if ($argc < 2 || ($argc == 3 && $argv[2] != '--no-debug') || $argc > 3) {
     fwrite(STDERR, "Usage: {$argv[0]} <filename> [--no-debug]\n\n");
