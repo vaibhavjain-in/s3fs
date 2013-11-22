@@ -8,8 +8,8 @@ viable under such a configuration.
 
 
 Dependencies
-Libraries API 2.x - https://drupal.org/project/libraries 
-AWS SDK for PHP (module) - http://drupal.org/project/awssdk 
+Libraries API 2.x - https://drupal.org/project/libraries
+AWS SDK for PHP (module) - http://drupal.org/project/awssdk
 AWS SDK for PHP (library) = http://aws.amazon.com/sdkforphp/
 
 Additional Requirements

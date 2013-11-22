@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Sets up the S3StreamWrapper class to be used as a Drupal file system.
+ * Sets up the s3fsStreamWrapper class to be used as a Drupal file system.
  */
 
 /**
@@ -17,7 +17,7 @@ function s3fs_stream_wrappers() {
   return array(
     's3' => array(
       'name' => 'S3 File System',
-      'class' => 'S3StreamWrapper',
+      'class' => 's3fsStreamWrapper',
       'description' => t('Amazon Simple Storage Service'),
     ),
   );
@@ -28,7 +28,7 @@ function s3fs_stream_wrappers() {
  */
 function s3fs_menu() {
   $items = array();
-  
+
   $items['admin/config/media/s3fs'] = array(
     'title' => 'S3 File System',
     'description' => 'Configure S3 File System settings.',
@@ -45,7 +45,7 @@ function s3fs_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-  
+
   return $items;
 }
 
@@ -84,7 +84,7 @@ function s3fs_help($path, $arg) {
  */
 function s3fs_admin() {
   $form = array();
-  
+
   $form['s3fs_bucket'] = array(
     '#type'           => 'textfield',
     '#title'          => t('S3 Bucket Name'),
@@ -167,7 +167,7 @@ function s3fs_admin() {
     '#default_value' => variable_get('s3fs_saveas', ''),
     '#rows' => 10,
   );
-  
+
   $form['s3fs_refresh_cache'] = array(
     '#type' => 'fieldset',
     '#description' => t("The file metadata cache keeps track of every file that S3 File System writes to (and deletes from) the S3 bucket,
@@ -189,7 +189,7 @@ function s3fs_admin() {
   $form['s3fs_refresh_cache']['refresh']['#attached']['css'] = array(
     '#edit-refresh {margin-bottom: 0; margin-top: 1em;} div.refresh {margin-bottom: 1em;}' => array('type' => 'inline'),
   );
-  
+
   $form['s3fs_refresh_cache']['s3fs_ignore_cache'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Ignore the file metadata cache'),
@@ -198,8 +198,8 @@ function s3fs_admin() {
        and should never be enabled on a production site."),
     '#default_value' => variable_get('s3fs_ignore_cache', 0),
   );
-  
-  
+
+
   // Add the compatilibity callback after calling system_settings_form(), so
   // it will be called after the default system settings submit function.
   $form = system_settings_form($form);
@@ -247,7 +247,7 @@ function s3fs_amazons3_api_compatibility_submit($form, &$form_state) {
     variable_set($amazons3_name, $value);
   }
 }
- 
+
 /**
  * Submit callback for the "Refresh file metadata cache" button.
  */
@@ -276,7 +276,7 @@ function s3fs_image_style_deliver() {
   // The second parameter ($scheme) is unused, since we know we're using s3://.
   array_shift($args);
   $filename = implode('/', $args);
-  
+
   $valid = !empty($style);
   if (!variable_get('image_allow_insecure_derivatives', FALSE) || strpos(ltrim($filename, '\/'), 'styles/') === 0) {
     $valid = $valid && isset($_GET[IMAGE_DERIVATIVE_TOKEN]) && $_GET[IMAGE_DERIVATIVE_TOKEN] === image_style_path_token($style['name'], "s3://$filename");
@@ -284,10 +284,10 @@ function s3fs_image_style_deliver() {
   if (!$valid) {
     return MENU_ACCESS_DENIED;
   }
-  
+
   $image_uri = "s3://$filename";
   $derivative_uri = image_style_path($style['name'], $image_uri);
-  
+
   // Copy the image from S3 into a local temporary file.
   $data = file_get_contents($image_uri);
   $temp_name = drupal_tempnam('temporary://', 's3image');
@@ -298,7 +298,7 @@ function s3fs_image_style_deliver() {
     print t('Error generating image.');
     drupal_exit();
   }
-  
+
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
   $lock_name = 's3fs_image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
@@ -313,16 +313,16 @@ function s3fs_image_style_deliver() {
       drupal_exit();
     }
   }
-  
+
   // Try to generate the image, unless another thread just did it while we were
   // acquiring the lock and setting up.
   $success = file_exists($derivative_uri) || image_style_create_derivative($style, $temp_name, $derivative_uri);
   drupal_unlink($temp_name);
-  
+
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
   }
-  
+
   if ($success) {
     // Perform a 302 Redirect to the newly-created iamge derivative.
     drupal_goto(file_create_url($derivative_uri));
@@ -349,7 +349,7 @@ function _s3fs_validate_config($bucket) {
     form_set_error('s3fs_bucket', $e->getMessage());
     return FALSE;
   }
-  
+
   try {
     // Test the connection to S3.
     $user_id = $s3->get_canonical_user_id();
@@ -400,21 +400,21 @@ function _s3fs_refresh_cache($bucket) {
   }
   $s3 = _s3fs_get_amazons3_client($bucket);
   $metadata_fields = array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid');
-  
+
   // Clear the files out of the metadata table, so we can recreate them from
   // scratch. Directories are not erased because empty directories could not
   // be regenerated.
   db_delete('s3fs_file')
     ->condition('dir', 0, '=')
     ->execute();
-  
+
   $marker = NULL;
   do {
     $args = array();
     if (!empty($marker)) {
       $args['marker'] = $marker;
     }
-    
+
     $response = $s3->list_objects($bucket, $args);
     if (!$response->isOK()) {
       drupal_set_message(t('Metadata cache refresh aborted. A %code error occurred: %error.', array('%code' => $response->status, '%error' => $response->body->Message)), 'error');
@@ -426,7 +426,7 @@ function _s3fs_refresh_cache($bucket) {
       $s3_metadata = _s3fs_s3_object_to_s3_metadata($object);
       $uri = "s3://{$s3_metadata['Key']}";
       $is_dir = $uri[strlen($uri) - 1] == '/';
-      
+
       if ($is_dir) {
         // There may be files in the S3 bucket pretending to be folders, by
         // having a trailing '/'. Add those to the cache as directories.
@@ -435,19 +435,19 @@ function _s3fs_refresh_cache($bucket) {
       else {
         $file_metadata_list[] = _s3fs_format_metadata($uri, $s3_metadata);
       }
-      
+
       // If we need to get another page of responces, the final key in the
       // previous page acts as the marker.
       $marker = $s3_metadata['Key'];
     }
-    
+
     // Re-populate the file metadata table with the current page's files.
     $insert_query = db_insert('s3fs_file')
       ->fields($metadata_fields);
     foreach ($file_metadata_list as $metadata) {
       $insert_query->values($metadata);
     }
-    
+
     try {
       $insert_query->execute();
     }
@@ -484,7 +484,7 @@ function _s3fs_refresh_cache($bucket) {
         throw $e;
       }
     }
-    
+
     // Now add the "folders" from S3. We need to use db_merge instead of insert
     // because folders don't get deleted in the first step.
     foreach ($folder_metadata_list as $metadata) {
@@ -494,7 +494,7 @@ function _s3fs_refresh_cache($bucket) {
         ->execute();
     }
   } while ($response->body->IsTruncated->to_string() == 'true');
-  
+
   // Rebuild the list of directories by looping through all the file URIs to
   // to figure out what their parent directories are.
   $uris = db_select('s3fs_file', 's')
@@ -510,8 +510,8 @@ function _s3fs_refresh_cache($bucket) {
       $directories[$dirname] = $dirname;
     }
   }
-  
-  $stream = new S3StreamWrapper();
+
+  $stream = new s3fsStreamWrapper();
   foreach ($directories as $directory) {
     // Recreate all the directories in the cache, except the root.
     if ($directory != 's3://') {
@@ -536,7 +536,7 @@ function _s3fs_refresh_cache($bucket) {
  */
 function _s3fs_format_metadata($uri, $s3_metadata) {
   $metadata = array('uri' => $uri);
-  
+
   if (empty($s3_metadata)) {
     // The caller wants directory metadata, so invent some.
     $metadata['dir'] = 1;
@@ -586,7 +586,7 @@ class s3fsAWSException extends Exception {}
  */
 function _s3fs_get_amazons3_client($bucket = NULL) {
   static $s3;
-  
+
   if (!isset($s3)) {
     if (!libraries_load('awssdk')) {
       throw new s3fsAWSException(t('Unable to load the AWS SDK. Please check you have installed the library correctly and configured your S3 credentials.'));
@@ -595,7 +595,7 @@ function _s3fs_get_amazons3_client($bucket = NULL) {
       throw new s3fsAWSException(t('Cannot load AmazonS3 class. Please ensure that the awssdk library is installed correctly.'));
     }
     $s3 = new AmazonS3();
-    
+
     // When the bucket has a . in its name, we are forced to use "path style"
     // URLs (http://s3.amazonaws.com/bucket-name) instead of the default
     // "DNS style" URLs (http://bucket-name.s3.amazonaws.com) because of the
@@ -613,14 +613,14 @@ function _s3fs_get_amazons3_client($bucket = NULL) {
       // regions.
       // $s3->ssl_verification = FALSE;
     }
-    
+
     // Using SSL makes uploads significantly slower, but is unsafe to disable.
     // I'm still looking for a better solution. -- coredumperror 2013/07/12
     // Using AWS SDK for PHP 2.0 may work. -- coredumperror 2013/10/08
     /*
     $s3->disable_ssl();
     */
-    
+
     if (variable_get('s3fs_customhost', FALSE)) {
       $hostname = variable_get('s3fs_hostname', '');
       if (empty($hostname)) {
@@ -633,6 +633,6 @@ function _s3fs_get_amazons3_client($bucket = NULL) {
       }
     }
   }
-  
+
   return $s3;
 }

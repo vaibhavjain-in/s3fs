@@ -129,7 +129,7 @@ function s3fs_update_7000() {
     'default' => 0,
   );
   db_change_field('s3fs_file', 'filesize', 'filesize', $spec);
-  
+
   $bucket = variable_get('s3fs_bucket', FALSE);
   if ($bucket) {
     _s3fs_refresh_cache($bucket);
