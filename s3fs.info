@@ -3,8 +3,14 @@ description = Adds an Amazon Simple Storage Service-based remote file system to 
 core = 7.x
 configure = admin/config/media/s3fs
 
-dependencies[] = awssdk (>=5.1)
 dependencies[] = libraries (2.x)
 
 ; Includes
 files[] = s3fsStreamWrapper.inc
+
+; Tests
+files[] = tests/s3fs.test
+; s3fs's tests depend on simpletest_clone, but you only need it for the tests,
+; so I don't want to force everyone to install it. There is an alternate check
+; elsewhere in the code.
+; dependencies[] = simpletest_clone

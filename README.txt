@@ -7,45 +7,67 @@ multiple servers, as the mechanism used by Drupal's default file systems is not
 viable under such a configuration.
 
 
-Dependencies
+== Dependencies ==
 Libraries API 2.x - https://drupal.org/project/libraries
-AWS SDK for PHP (module) - http://drupal.org/project/awssdk
-AWS SDK for PHP (library) = http://aws.amazon.com/sdkforphp/
-
-Additional Requirements
-Your PHP must be configured with "allow_url_fopen = On"
-in your php.ini file. Otherwise, PHP will be unable to open files that are in
-your S3 bucket.
+AWS SDK for PHP 2 (library) = http://aws.amazon.com/sdkforphp/
 
 
-Installation
-Download and install the Libraries (7.x-2.x branch) and AWS SDK
-modules http://drupal.org/project/libraries http://drupal.org/project/awssdk
-(For installation of awssdk, you will need to download the Amazon SDK for PHP
-and place it in sites/all/libraries/awdsdk ) http://aws.amazon.com/sdkforphp/
-
-- Configure AWS SDK (using either the AWS SDK for PHP UI module, or storing the
-- settings in your settings.php file's $conf array).
-
-- Configure your bucket setttings at /admin/config/media/s3fs
-
-- Refresh your file metadata cache using the button at the bottom of
-- /admin/config/media/s3fs
-
-You can then: - Visit admin/config/media/file-system and set the Default
-download method to Amazon Simple Storage Service and/or - Add a field of type
-File or Image etc and set the Upload destination to Amazon Simple Storage
-Service in the Field Settings tab.
+== Additional Requirements ==
+PHP 5.3.3+ is required. The AWS SDK will not work on earlier versions.
+Your PHP must be configured with "allow_url_fopen = On" in your php.ini file.
+Otherwise, PHP will be unable to open files that are in your S3 bucket.
 
 
-Known Issues
+== Installation ==
+Download and install the Libraries module (7.x-2.x) module from
+http://drupal.org/project/libraries, then install AWS SDK for PHP 2.
+
+You can install the SDK in three different ways:
+1) (Recommended) Download and extract this zip to sites/all/libraries/awssdk2:
+https://github.com/aws/aws-sdk-php/releases/download/2.4.10/aws.zip
+2) Run this drush command from your site's root directory:
+drush make sites/all/modules/s3fs/s3fs.make --no-core
+3) Clone the following github repo into sites/all/libraries/awssdk2:
+  https://github.com/coredumperror/aws-sdk-for-php2.git
+
+For the SDK to work, you site's filesystem must have a file named
+sites/all/libraries/awssdk2/aws-autoloader.php
+
+If you keep your site in its own git repo and you used methods 2 or 3, be sure
+to delete the sites/all/libraries/awssdk2/.git folder. Otherwise you may end
+up with strange git submodule behavior.
+
+== Configuring S3 File System ==
+Configure your Amazon Web Services credentials by storing them in the $conf
+array in your site's settings.php file, like so:
+$conf['awssdk2_access_key'] = 'YOUR ACCESS KEY';
+$conf['awssdk2_secret_key'] = 'YOUR SECRET KEY';
+
+TODO: Consider making these settable from the UI.
+
+Configure your setttings for S3 File System (including your S3 bucket name)
+at /admin/config/media/s3fs/settings
+
+With the settings saved, go to /admin/config/media/s3fs/actions to refresh the
+file metadata cache. This will copy the filenames and attributes for every
+existing file in your S3 bucket into Drupal's database. This can take a
+significant amount of time for very large buckets (thousands of files).
+
+
+== Using S3 File System ==
+Visit admin/config/media/file-system and set the "Default download method" to
+Amazon Simple Storage Service -and/or-
+Add a field of type File, Image, etc and set the "Upload destination" to
+Amazon Simple Storage Service in the Field Settings tab.
+
+
+== Known Issues ==
 Some curl libraries, such as the one bundled with MAMP, do not come
-with authoritative certificate files. http://dev.soup.io/post/56438473/If-youre-
-using-MAMP-and-doing-something
+with authoritative certificate files. See the following page for details:
+http://dev.soup.io/post/56438473/If-youre-using-MAMP-and-doing-something
 
-
-Special recognition goes to justafish, author of the <a
-href="https://drupal.org/project/amazons3">AmazonS3</a> module. S3 File System
-is heavily inspired by her great module, but has been re-written from the ground
-up to provide powerful performance improvements and other new features and
-fixes.
+== Acknowledgements ==
+Special recognition goes to justafish, author of the AmazonS3 module:
+http://drupal.org/project/amazons3
+S3 File System is a from-the-ground-up re-write of her great module, with
+powerful performance improvements and several new features.

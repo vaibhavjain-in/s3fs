@@ -15,28 +15,27 @@
 /**
  * Alters the format and options used when creating an external URL.
  *
- * For example the URL can be a URL directly to the
- * file, or can be a URL to a torrent. In addition, it can be authenticated
- * (time limited), and in that case a save-as can be forced.
+ * For example the URL can be a URL directly to the file, or can be a URL to a
+ * torrent. In addition, it can be authenticated (time limited), and in that
+ * case a save-as can be forced.
  *
  * @param string $local_path
  *   The local filesystem path.
- * @param array $info
- *   Array of keyed elements:
- *     - 'download_type': either 'http' or 'torrent'.
+ * @param array $settings
+ *   Associative array of URL settings:
+ *     - 'download_type': (string) either 'http', 'https', or 'torrent'.
  *     - 'torrent': (boolean) Triggers use of an authenticated URL (w/ timeout)
- *     - 'presigned_url_timeout': (boolean) Time in seconds before an
- *          authenticated URL will time out.
- *     - 'response': array of additional options as described at
- *       http://docs.amazonwebservices.com/AWSSDKforPHP/latest/index.html#m=AmazonS3/get_object_url
+ *     - 'timeout': (int) Time in seconds before a pre-signed URL times out.
+ *     - 'api_args': array of additional arguments to the getObject() function:
+ *       http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_getObject
  *
  * @return array
  *   The modified array of configuration items.
  */
-function hook_s3fs_url_info($local_path, &$info) {
+function hook_s3fs_url_info($local_path, &$url_settings) {
+  // An example of what you might want to do with this hook.
   if ($local_path == 'myfile.jpg') {
-    $info['presigned_url'] = TRUE;
-    $info['presigned_url_timeout'] = 10;
+    $url_settings['presigned_url'] = TRUE;
+    $url_settings['timeout'] = 10;
   }
-  return $info;
 }
