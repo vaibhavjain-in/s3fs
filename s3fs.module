@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Sets up the s3fsStreamWrapper class to be used as a Drupal file system.
+ * Sets up the S3fsStreamWrapper class to be used as a Drupal file system.
  */
 
 /**
@@ -13,7 +13,7 @@ define('S3FS_VERSION', '7.x-0.2-dev');
 /**
  * Class used to differentiate between known and unknown exception states.
  */
-class s3fsException extends Exception {}
+class S3fsException extends Exception {}
 
 /**
  * Implements hook_stream_wrappers().
@@ -22,7 +22,7 @@ function s3fs_stream_wrappers() {
   return array(
     's3' => array(
       'name' => 'S3 File System',
-      'class' => 's3fsStreamWrapper',
+      'class' => 'S3fsStreamWrapper',
       'description' => t('Amazon Simple Storage Service'),
     ),
   );
@@ -210,7 +210,7 @@ function _s3fs_validate_config($config) {
   try {
     $s3 = _s3fs_get_amazons3_client($config);
   }
-  catch (s3fsException $e) {
+  catch (S3fsException $e) {
     form_set_error('s3fs_bucket', $e->getMessage());
     return FALSE;
   }
@@ -432,13 +432,13 @@ function _s3fs_get_amazons3_client($config) {
     $access_key = variable_get('awssdk2_access_key', FALSE);
     $library = libraries_load('awssdk2');
     if (!$library['loaded']) {
-      throw new s3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
+      throw new S3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
     }
     elseif (!class_exists('Aws\S3\S3Client')) {
-      throw new s3fsException(t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.'));
+      throw new S3fsException(t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.'));
     }
     elseif (!$secret_key || !$access_key) {
-      throw new s3fsException(t("Your AWS credentials have not been properly configured.
+      throw new S3fsException(t("Your AWS credentials have not been properly configured.
         Please set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file."));
     }
     

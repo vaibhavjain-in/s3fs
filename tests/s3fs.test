@@ -83,7 +83,7 @@ else {
         return;
       }
       $this->assertTrue(file_stream_wrapper_valid_scheme('s3'), '"s3" is a valid stream wrapper scheme.');
-      $this->assertEqual(file_stream_wrapper_get_class('s3'), 's3fsStreamWrapper', 'URIs with scheme "s3" should be handled by s3fsStreamWrapper.');
+      $this->assertEqual(file_stream_wrapper_get_class('s3'), 'S3fsStreamWrapper', 'URIs with scheme "s3" should be handled by S3fsStreamWrapper.');
       
       // Generate the contents of the test file. 250 lines of this:
       $test_string = "This is a test, this is only a test, of the Emergency Test Testing System.\n";

@@ -8,7 +8,7 @@
  * the s3:// prefix.
  */
 
-class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
+class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
    * Stream context (this is set by PHP when a context is used).
@@ -90,11 +90,11 @@ class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
    * specified on the S3 File System Settings page.
    */
   public function __construct() {
-    // Since s3fsStreamWrapper is always constructed with the same inputs (the
+    // Since S3fsStreamWrapper is always constructed with the same inputs (the
     // file URI is not part of construction), store the constructed settings
     // statically. This is important for performance because Drupal
     // re-constructs stream wrappers very often.
-    $settings = &drupal_static('s3fsStreamWrapper_constructed_settings');
+    $settings = &drupal_static('S3fsStreamWrapper_constructed_settings');
     if ($settings !== NULL) {
       $this->config = $settings['config'];
       $this->s3 = _s3fs_get_amazons3_client($this->config);
@@ -193,7 +193,7 @@ class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $settings['presignedURLs'] = $this->presignedURLs;
     $settings['saveas'] = $this->saveas;
     $this->constructed = TRUE;
-    $this->_debug('s3fsStreamWrapper constructed.');
+    $this->_debug('S3fsStreamWrapper constructed.');
   }
   
   /***************************************************************************
@@ -407,7 +407,7 @@ class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function chmod($mode) {
     $this->_assert_constructor_called();
     $octal_mode = decoct($mode);
-    $this->_debug("chmod($octal_mode) called. s3fsStreamWrapper does not support this function.");
+    $this->_debug("chmod($octal_mode) called. S3fsStreamWrapper does not support this function.");
     
     return TRUE;
   }
@@ -419,7 +419,7 @@ class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
    *   Returns FALSE.
    */
   public function realpath() {
-    $this->_debug("realpath() called for {$this->uri}. s3fsStreamWrapper does not support this function.");
+    $this->_debug("realpath() called for {$this->uri}. S3fsStreamWrapper does not support this function.");
     
     return FALSE;
   }
@@ -535,7 +535,7 @@ class s3fsStreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-lock.php
    */
   public function stream_lock($operation) {
-    $this->_debug("stream_lock($operation) called. s3fsStreamWrapper doesn't support this function.");
+    $this->_debug("stream_lock($operation) called. S3fsStreamWrapper doesn't support this function.");
     
     return FALSE;
   }
