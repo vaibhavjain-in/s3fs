@@ -44,16 +44,27 @@ function s3fs_settings() {
     '#description'   => t('Serve files from a custom domain by using an appropriately named bucket, e.g. "mybucket.mydomain.com".'),
     '#default_value' => !empty($config['use_cname']) ? $config['use_cname'] : '',
   );
-  $form['s3fs_domain'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('CDN Domain Name'),
-    '#description'   => t('If serving files from CloudFront, the bucket name can differ from the domain name.'),
-    '#default_value' => !empty($config['domain']) ? $config['domain'] : '',
+  $form['s3fs_cname_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('CNAME Settings'),
     '#states'        => array(
       'visible' => array(
         ':input[id=edit-s3fs-use-cname]' => array('checked' => TRUE),
       ),
     ),
+  );
+  $form['s3fs_cname_settings']['s3fs_domain'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('CDN Domain Name'),
+    '#description'   => t('If serving files from CloudFront, the bucket name can differ from the domain name.'),
+    '#default_value' => !empty($config['domain']) ? $config['domain'] : '',
+  );
+  $form['s3fs_cname_settings']['s3fs_use_relative_urls'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Generate root-relative paths for s3 files'),
+    '#description'   => t('Generate relative URLs to files in your bucket, e.g. "/images/smiley.jpg" instead of "http://s3.amazoaws.com/images/smiley.jpg".
+      This is only useful if you use a CNAME set to the same domain as your drupal site.'),
+    '#default_value' => !empty($config['use_relative_urls']) ? $config['use_relative_urls'] : FALSE,
   );
   $form['s3fs_use_https'] = array(
     '#type'          => 'checkbox',
@@ -62,21 +73,23 @@ function s3fs_settings() {
       Without this setting enabled, URLs for your files will use the same scheme as the page they are served from.'),
     '#default_value' => !empty($config['use_https']) ? $config['use_https'] : FALSE,
   );
-  $form['s3fs_allow_relative'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Allow root-relative paths for s3 files'),
-    '#description'   => t('Allows S3 File System to generate relative URLs to files in your bucket, e.g. "/images/smiley.jpg". This will only have any meaning if you use a CNAME setting that sets the domin the same as your drupal site\'s domain.'),
-    '#default_value' => !empty($config['allow_relative']) ? $config['allow_relative'] : FALSE,
-  );
   $form['s3fs_use_customhost'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Use a Custom Hostname'),
     '#description'   => t('Connect to an S3-compatible storage service other than Amazon.'),
     '#default_value' => !empty($config['use_customhost']) ? $config['use_customhost'] : FALSE,
   );
-  $form['s3fs_hostname'] = array(
+  $form['s3fs_costomhost_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Custom Hostname'),
+    '#states'        => array(
+      'visible' => array(
+        ':input[id=edit-s3fs-use-customhost]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+  $form['s3fs_costomhost_settings']['s3fs_hostname'] = array(
     '#type'          => 'textfield',
-    '#title'         => t('Hostname'),
     '#description'   => t('Custom service hostname, e.g. "objects.dreamhost.com".'),
     '#default_value' => !empty($config['hostname']) ? $config['hostname'] : '',
     '#states'        => array(
@@ -89,16 +102,17 @@ function s3fs_settings() {
     '#type'          => 'checkbox',
     '#title'         => t('Ignore the file metadata cache'),
     '#description'   => t("If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache.
-       This will make all filesystem reads hit S3 instead of the cache. This causes an ENORMOUS performance loss,
-       and should never be enabled on a production site."),
+       This will make all filesystem reads hit S3 instead of the cache.<br>
+       Please be aware that this causes an ENORMOUS performance loss, and should never be enabled on a production site."),
     '#default_value' => !empty($config['ignore_cache']) ? $config['ignore_cache'] : FALSE,
   );
   
   $form['s3fs_torrents'] = array(
     '#type' => 'textarea',
     '#title' => t('Torrents'),
-    '#description' => t('A list of paths that should be delivered through a torrent url. Enter one value per line, e.g. "mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per !link.',
+    '#description' => t('A list of paths that should be delivered through a torrent url.<br>
+      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
+      <b>This feature is incompatible with the Enable CNAME option.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',
     '#rows' => 5,
@@ -106,10 +120,10 @@ function s3fs_settings() {
   $form['s3fs_presigned_urls'] = array(
     '#type' => 'textarea',
     '#title' => t('Presigned URLs'),
-    '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.
-      Enter one value per line, in the format timeout|path. e.g. "60|mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per !link.
-      If no timeout is provided, it defaults to 60 seconds.',
+    '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.<br>
+      Enter one value per line, in the format timeout|path. e.g. "60|private_files/*". Paths use regex patterns as per !link.
+      If no timeout is provided, it defaults to 60 seconds.<br>
+      <b>This feature is incompatible with the Enable CNAME option.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['presigned_urls']) ? $config['presigned_urls'] : '',
     '#rows' => 5,
@@ -117,10 +131,10 @@ function s3fs_settings() {
   $form['s3fs_saveas'] = array(
     '#type' => 'textarea',
     '#title' => t('Force Save As'),
-    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header.
-      Prevents autoplay of media. Enter one value per line. e.g. "mydir/*".
-      Paths are relative to the Drupal file directory and use patterns as per !link.
-      <b>Files must use a presigned url to use this feature.</b>', array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
+    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header. Useful for preventing media autoplay.<br>
+      Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
+      <b>This feature is incompatible with the Enable CNAME option.</b>',
+      array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['saveas']) ? $config['saveas'] : '',
     '#rows' => 5,
   );
