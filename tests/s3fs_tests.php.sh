@@ -3,7 +3,7 @@
 
 /**
  * @file
- * Tests for s3fsStreamWrapper and its helper functions.
+ * Tests for S3fsStreamWrapper and its helper functions.
  *
  * Drupal's unit testing framework is unsuited for testing this module, because
  * it disallows access to the database. Its web testing framework is
@@ -42,7 +42,7 @@ function _s3fs_upload_test($filename) {
   $uploaded_uri2 = "s3://_s3fs_test/test_file2.jpg";
   
   _s3fs_assert(file_stream_wrapper_valid_scheme('s3'), __LINE__, '"s3" should be a valid stream wrapper scheme.');
-  _s3fs_assert(file_stream_wrapper_get_class('s3') == 's3fsStreamWrapper', __LINE__, 'URIs with scheme "s3" should be handled by s3fsStreamWrapper.');
+  _s3fs_assert(file_stream_wrapper_get_class('s3') == 'S3fsStreamWrapper', __LINE__, 'URIs with scheme "s3" should be handled by S3fsStreamWrapper.');
   
   _s3fs_test_print("Uploading: $filename to $uploaded_uri...");
   
