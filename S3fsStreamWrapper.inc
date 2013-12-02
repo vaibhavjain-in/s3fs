@@ -298,7 +298,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     // Set up the URL settings from the Settings page.
     $url_settings = array(
-      'download_type' => 'http',
+      'torrent' => FALSE,
       'presigned_url' => FALSE,
       'timeout' => 60,
       'api_args' => array('Scheme' => !empty($this->config['use_https']) ? 'https' : 'http'),
@@ -308,7 +308,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     foreach ($this->torrents as $blob) {
       // ^ is used as the delimeter because it's an illegal character in URLs.
       if (preg_match("^$blob^", $s3_filename)) {
-        $url_settings['download_type'] = 'torrent';
+        $url_settings['torrent'] = TRUE;
         break;
       }
     }
@@ -321,7 +321,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     // Forced "Save As".
-    if ($url_settings['download_type'] != 'torrent') {
+    if (!$url_settings['torrent']) {
       foreach ($this->saveas as $blob) {
         if (preg_match("^$blob^", $s3_filename)) {
           $filename = basename($s3_filename);
@@ -335,13 +335,31 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
     
     if (!$this->config['use_cname']) {
-      // TODO: Figure out what the deal is with torrent URLs. getObjectTorrent appears
-      // to offer the actual torrent file, rather than the URL.
       $expires = $url_settings['presigned_url'] ? "+{$url_settings['timeout']} seconds" : NULL;
+      // Due to Amazon's security policies (see Request Parameters section @
+      // http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html),
+      // only signed requests can use request parameters. So, we must provide
+      // an expiry time for any URLs which specify Response* API args.
+      foreach ($url_settings['api_args'] as $key => $arg) {
+        if (strpos($key, 'Response') === 0) {
+          $expires = "+1 year";
+          break;
+        }
+      }
       $url = $this->s3->getObjectUrl($this->config['bucket'], $s3_filename, $expires, $url_settings['api_args']);
     }
     else {
       $url = "{$this->domain}/$s3_filename";
+    }
+    
+    // The old SDK accepted a parameter to its "get url" function that did
+    // this for us, but the new SDK does not. So we have to do it manually.
+    if ($url_settings['torrent']) {
+      // FOR NOW, torrent URLs don't work with Presigned URLs, so only add
+      // the torrent option if there's no other GET args.
+      if (strpos($url, '?') === FALSE) {
+        $url .= '?torrent';
+      }
     }
     return $url;
   }
@@ -376,16 +394,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Gets the path that the wrapper is responsible for.
    *
-   * Even though this function isn't specified in DrupalStreamWrapperInterface,
-   * Drupal's code calls it on all wrappers, so we need to define it.
-   *
-   * @return bool
-   *   String specifying the path.
+   * @return string
+   *   The empty string. Since this is a remote stream wrapper,
+   *   it has no directory path.
    */
   public function getDirectoryPath() {
     $this->_debug("getDirectoryPath() called.");
     
-    return $this->domain;
+    return '';
   }
   
   /***************************************************************************
@@ -609,7 +625,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Support for fflush(). Flush current cached stream data to storage.
+   * Support for fflush(). Flush current cached stream data to a file in S3.
    *
    * @return bool
    *   TRUE if data was successfully stored (or there was no data to store).
@@ -624,9 +640,12 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     
     $this->body->rewind();
-    
+    $upload_params = $this->params;
+    $upload_params['Body'] = $this->body;
+    // Torrent URLs can never work unless the ACL is 'public-read'.
+    $upload_params['ACL'] = 'public-read';
     try {
-      $this->s3->putObject($this->params + array('Body' => $this->body));
+      $this->s3->putObject($upload_params);
       $this->s3->waitUntilObjectExists($this->params);
       $metadata = $this->_get_metadata_from_s3($this->uri);
       if ($metadata === FALSE) {

@@ -23,8 +23,8 @@
  *   The local filesystem path.
  * @param array $settings
  *   Associative array of URL settings:
- *     - 'download_type': (string) either 'http', 'https', or 'torrent'.
- *     - 'torrent': (boolean) Triggers use of an authenticated URL (w/ timeout)
+ *     - 'torrent': (boolean) Should the file should be sent via BitTorrent?
+ *     - 'presigned_url': (boolean) Triggers use of an authenticated URL.
  *     - 'timeout': (int) Time in seconds before a pre-signed URL times out.
  *     - 'api_args': array of additional arguments to the getObject() function:
  *       http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_getObject

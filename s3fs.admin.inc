@@ -75,21 +75,22 @@ function s3fs_settings() {
   );
   $form['s3fs_use_customhost'] = array(
     '#type'          => 'checkbox',
-    '#title'         => t('Use a Custom Hostname'),
+    '#title'         => t('Use a Custom Host'),
     '#description'   => t('Connect to an S3-compatible storage service other than Amazon.'),
     '#default_value' => !empty($config['use_customhost']) ? $config['use_customhost'] : FALSE,
   );
-  $form['s3fs_costomhost_settings'] = array(
+  $form['s3fs_costomhost_settings_fieldset'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Custom Hostname'),
-    '#states'        => array(
+    '#title' => t('Custom Host Settings'),
+    '#states' => array(
       'visible' => array(
         ':input[id=edit-s3fs-use-customhost]' => array('checked' => TRUE),
       ),
     ),
   );
-  $form['s3fs_costomhost_settings']['s3fs_hostname'] = array(
+  $form['s3fs_costomhost_settings_fieldset']['s3fs_hostname'] = array(
     '#type'          => 'textfield',
+    '#title'         => t('Hostname'),
     '#description'   => t('Custom service hostname, e.g. "objects.dreamhost.com".'),
     '#default_value' => !empty($config['hostname']) ? $config['hostname'] : '',
     '#states'        => array(
@@ -112,7 +113,7 @@ function s3fs_settings() {
     '#title' => t('Torrents'),
     '#description' => t('A list of paths that should be delivered through a torrent url.<br>
       Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
-      <b>This feature is incompatible with the Enable CNAME option.</b>',
+      <b>This feature is incompatible with the "Presigned URLs" and "Force Save As" options.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',
     '#rows' => 5,
@@ -131,8 +132,9 @@ function s3fs_settings() {
   $form['s3fs_saveas'] = array(
     '#type' => 'textarea',
     '#title' => t('Force Save As'),
-    '#description' => t('A list of paths that force the user to save the file, by using the Content-Disposition header. Useful for preventing media autoplay.<br>
+    '#description' => t('A list of paths for which users will be forced to save the file, rather than displaying it in the browser.<br>
       Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
+      Please be aware that due to Amazon\'s security policies, URLs generated with this option will expire after 1 year.<br>
       <b>This feature is incompatible with the Enable CNAME option.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['saveas']) ? $config['saveas'] : '',
