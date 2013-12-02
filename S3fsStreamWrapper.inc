@@ -138,13 +138,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if ($this->config['use_cname']) {
       $domain = check_url($this->config['domain']);
       if ($domain) {
-        if ($this->config['use_relative_urls'] && strpos($domain, '/') === 0) {
-          $domain = $_SERVER['HTTP_HOST'] . $domain;
-        }
         $this->domain = "$scheme://$domain";
       }
       else {
-        $this->domain = "$scheme://{$this->config['bucket']}";
+        // Due to the config form's validation, this shouldn't ever happen.
+        throw new Exception(t('The "Use CNAME" option is enabled, but no Domain Name has been set. S3fsStreamWrapper construction cannot continue.'));
       }
     }
     

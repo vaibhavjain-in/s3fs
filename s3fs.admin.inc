@@ -44,27 +44,20 @@ function s3fs_settings() {
     '#description'   => t('Serve files from a custom domain by using an appropriately named bucket, e.g. "mybucket.mydomain.com".'),
     '#default_value' => !empty($config['use_cname']) ? $config['use_cname'] : '',
   );
-  $form['s3fs_cname_settings'] = array(
+  $form['s3fs_cname_settings_fieldset'] = array(
     '#type' => 'fieldset',
     '#title' => t('CNAME Settings'),
-    '#states'        => array(
+    '#states' => array(
       'visible' => array(
         ':input[id=edit-s3fs-use-cname]' => array('checked' => TRUE),
       ),
     ),
   );
-  $form['s3fs_cname_settings']['s3fs_domain'] = array(
+  $form['s3fs_cname_settings_fieldset']['s3fs_domain'] = array(
     '#type'          => 'textfield',
     '#title'         => t('CDN Domain Name'),
     '#description'   => t('If serving files from CloudFront, the bucket name can differ from the domain name.'),
     '#default_value' => !empty($config['domain']) ? $config['domain'] : '',
-  );
-  $form['s3fs_cname_settings']['s3fs_use_relative_urls'] = array(
-    '#type'          => 'checkbox',
-    '#title'         => t('Generate root-relative paths for s3 files'),
-    '#description'   => t('Generate relative URLs to files in your bucket, e.g. "/images/smiley.jpg" instead of "http://s3.amazoaws.com/images/smiley.jpg".
-      This is only useful if you use a CNAME set to the same domain as your drupal site.'),
-    '#default_value' => !empty($config['use_relative_urls']) ? $config['use_relative_urls'] : FALSE,
   );
   $form['s3fs_use_https'] = array(
     '#type'          => 'checkbox',

@@ -203,7 +203,11 @@ function _s3fs_image_style_deliver() {
  */
 function _s3fs_validate_config($config) {
   if (!empty($config['use_customhost']) && empty($config['hostname'])) {
-    form_set_error('s3fs_hostname', 'You must specify a hostname to use the Custom Hostname feature.');
+    form_set_error('s3fs_hostname', 'You must specify a Hostname to use the Custom Host feature.');
+    return FALSE;
+  }
+  if (!empty($config['use_cname']) && empty($config['domain'])) {
+    form_set_error('s3fs_domain', 'You must specify a CDN Domain Name to use the CNAME feature.');
     return FALSE;
   }
   
@@ -215,15 +219,11 @@ function _s3fs_validate_config($config) {
     return FALSE;
   }
   
+  // Test the connection to S3, and the bucket name.
   try {
-    // Test the connection to S3.
-    $use_instance_profile = variable_get('aws_use_instance_profile', FALSE);
-    // TODO: http://docs.aws.amazon.com/AmazonS3/latest/dev/AuthUsingTempSessionTokenPHP.html
-    //   Tells how to use IAM Roles/Instance Profile (I think?)
-    
-    // Call listBuckets() to trigger any exceptions which might occur due to
+    // Call listObjects() to trigger any exceptions which might occur due to
     // invalid configuration. doesBucketExist() doesn't work for that.
-    $buckets = $s3->listBuckets();
+    $s3->listObjects(array('Bucket' => $config['bucket']));
     
     if (!$s3->doesBucketExist($config['bucket'])) {
       form_set_error('s3fs_bucket', t('The bucket %bucket does not exist in the %region region.',
@@ -430,6 +430,8 @@ function _s3fs_get_amazons3_client($config) {
   if (!isset($s3)) {
     $secret_key = variable_get('awssdk2_secret_key', FALSE);
     $access_key = variable_get('awssdk2_access_key', FALSE);
+    $use_instance_profile = variable_get('s3fs_use_instance_profile', FALSE);
+    $default_cache_config = variable_get('awssdk2_default_cache_config', '');
     $library = libraries_load('awssdk2');
     if (!$library['loaded']) {
       throw new S3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
@@ -437,16 +439,26 @@ function _s3fs_get_amazons3_client($config) {
     elseif (!class_exists('Aws\S3\S3Client')) {
       throw new S3fsException(t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.'));
     }
-    elseif (!$secret_key || !$access_key) {
+    elseif (!$use_instance_profile && (!$secret_key || !$access_key)) {
       throw new S3fsException(t("Your AWS credentials have not been properly configured.
         Please set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file."));
     }
-    
+    elseif ($use_instance_profile && !$default_cache_config) {
+      throw new s3fsException(t("Your AWS credentials have not been properly configured.
+        You are attempting to use instance profile credentials but you have not set a default cache location.
+        Please set \$conf['awssdk2_default_cache_config'] in your site's settings.php file"));
+    }
     // Create and configure the S3Client object.
-    $s3 = Aws\S3\S3Client::factory(array(
-      'key'    => $access_key,
-      'secret' => $secret_key,
-    ));
+    if ($use_instance_profile) {
+      $credentials = array('default_cache_config' => $default_cache_config);
+    }
+    else {
+      $credentials = array(
+        'key'    => $access_key,
+        'secret' => $secret_key,
+      );
+    }
+    $s3 = Aws\S3\S3Client::factory($credentials);
     if (!empty($config['region'])) {
       $s3->setRegion($config['region']);
     }

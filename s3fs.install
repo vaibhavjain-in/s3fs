@@ -249,3 +249,13 @@ function s3fs_update_7003() {
     variable_del('s3fs_allow_relative');
   }
 }
+
+/**
+ * Remove the s3fs_use_relative_urls variable.
+ */
+function s3fs_update_7004() {
+  $use_relative = variable_get('s3fs_use_relative_urls', 'unset');
+  if ($use_relative !== 'unset') {
+    variable_del('s3fs_use_relative_urls');
+  }
+}
