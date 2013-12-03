@@ -353,8 +353,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // The old SDK accepted a parameter to its "get url" function that did
     // this for us, but the new SDK does not. So we have to do it manually.
     if ($url_settings['torrent']) {
-      // FOR NOW, torrent URLs don't work with Presigned URLs, so only add
-      // the torrent option if there's no other GET args.
+      // Torrent URLs don't work with Presigned URLs, so only add the torrent
+      // query arg if there are no other GET args.
       if (strpos($url, '?') === FALSE) {
         $url .= '?torrent';
       }
@@ -640,7 +640,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->body->rewind();
     $upload_params = $this->params;
     $upload_params['Body'] = $this->body;
-    // Torrent URLs can never work unless the ACL is 'public-read'.
+    // All files uploaded to S3 must be set to public-read, or users' browsers
+    // will get PermissionDenied errors, and torrent URLs won't work.
     $upload_params['ACL'] = 'public-read';
     try {
       $this->s3->putObject($upload_params);
@@ -767,6 +768,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Add the copyObject() parameters.
     $to_params['CopySource'] = "/{$from_params['Bucket']}/" . rawurlencode($from_params['Key']);
     $to_params['MetadataDirective'] = 'COPY';
+    $to_params['ACL'] = 'public-read';
     
     try {
       // Copy the original object to the specified destination.

@@ -117,7 +117,7 @@ function s3fs_settings() {
     '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.<br>
       Enter one value per line, in the format timeout|path. e.g. "60|private_files/*". Paths use regex patterns as per !link.
       If no timeout is provided, it defaults to 60 seconds.<br>
-      <b>This feature is incompatible with the Enable CNAME option.</b>',
+      <b>This feature does not work when "Enable CNAME" is checked.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['presigned_urls']) ? $config['presigned_urls'] : '',
     '#rows' => 5,
@@ -127,8 +127,8 @@ function s3fs_settings() {
     '#title' => t('Force Save As'),
     '#description' => t('A list of paths for which users will be forced to save the file, rather than displaying it in the browser.<br>
       Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
-      Please be aware that due to Amazon\'s security policies, URLs generated with this option will expire after 1 year.<br>
-      <b>This feature is incompatible with the Enable CNAME option.</b>',
+      Please be aware that due to Amazon\'s security policies, URLs generated with this option will expire after 1 year. Therefore, users are strongly advised to share the page that contains the URLs, rather than sharing the URLs directly.<br>
+      <b>This feature does not work when "Enable CNAME" is checked.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['saveas']) ? $config['saveas'] : '',
     '#rows' => 5,
