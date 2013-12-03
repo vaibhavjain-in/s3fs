@@ -394,7 +394,7 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
  * @param string $uri
  *   A string containing the uri of the resource to check.
  * @param array $s3_metadata
- *   An array containing the collective metadata for the Amazon S3 object.
+ *   An array containing the collective metadata for the object in S3.
  *   The caller may send an empty array here to indicate that the returned
  *   metadata should represent a directory.
  *

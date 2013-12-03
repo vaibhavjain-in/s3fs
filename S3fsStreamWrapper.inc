@@ -4,8 +4,8 @@
  * @file
  * Drupal stream wrapper implementation for S3 File System.
  *
- * Implements DrupalStreamWrapperInterface to provide an Amazon S3 wrapper with
- * the s3:// prefix.
+ * Implements DrupalStreamWrapperInterface to provide an Amazon S3 wrapper
+ * using the "s3://" scheme.
  */
 
 class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
