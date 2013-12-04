@@ -637,12 +637,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       return FALSE;
     }
     
+    // Prep the upload parameters.
     $this->body->rewind();
     $upload_params = $this->params;
     $upload_params['Body'] = $this->body;
     // All files uploaded to S3 must be set to public-read, or users' browsers
     // will get PermissionDenied errors, and torrent URLs won't work.
     $upload_params['ACL'] = 'public-read';
+    $upload_params['ContentType'] = s3fsStreamWrapper::getMimeType($this->uri);
+    
     try {
       $this->s3->putObject($upload_params);
       $this->s3->waitUntilObjectExists($this->params);
@@ -897,6 +900,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    *   A string containing the URI to get information about.
    * @param int $flags
    *   A bit mask of STREAM_URL_STAT_LINK and STREAM_URL_STAT_QUIET.
+   *   S3fsStreamWrapper ignores this value.
    *
    * @return array
    *   An array with file status, or FALSE in case of an error - see fstat()
