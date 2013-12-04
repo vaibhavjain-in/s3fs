@@ -138,6 +138,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if ($this->config['use_cname']) {
       $domain = check_url($this->config['domain']);
       if ($domain) {
+        // If domain is set to a root-relative path, add the hostname back in.
+        if (strpos($domain, '/') === 0) {
+          $domain = $_SERVER['HTTP_HOST'] . $domain;
+        }
         $this->domain = "$scheme://$domain";
       }
       else {
