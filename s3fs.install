@@ -204,3 +204,20 @@ function s3fs_update_7004() {
     variable_del('s3fs_use_relative_urls');
   }
 }
+
+/**
+ * Remove the extra amazons3 variables that are not necessary for
+ * compatibility with amazons3_cors.
+ */
+function s3fs_update_7005() {
+  $variable_names = db_select('variable', 'v')
+    ->fields('v', array('name'))
+    ->condition('name', 'amazons3_%', 'LIKE')
+    ->execute()
+    ->fetchCol(0);
+  foreach ($variable_names as $name) {
+    if ($name != 'amazons3_bucket') {
+      variable_del($name);
+    }
+  }
+}

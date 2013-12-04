@@ -159,16 +159,7 @@ function s3fs_settings_validate($form, &$form_state) {
  * AmazonS3 can be found here: https://drupal.org/project/amazons3
  */
 function _s3fs_amazons3_api_compatibility_submit($form, &$form_state) {
-  $variable_names = db_select('variable', 'v')
-    ->fields('v', array('name'))
-    ->condition('name', 's3fs_%', 'LIKE')
-    ->execute()
-    ->fetchCol(0);
-  foreach ($variable_names as $name) {
-    $value = variable_get($name);
-    $amazons3_name = str_replace('s3fs_', 'amazons3_', $name);
-    variable_set($amazons3_name, $value);
-  }
+  variable_set('amazons3_bucket', variable_get('s3fs_bucket'));
 }
 
 /**
