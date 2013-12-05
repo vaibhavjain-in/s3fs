@@ -14,3 +14,5 @@ files[] = tests/s3fs.test
 ; so I don't want to force everyone to install it. There is an alternate check
 ; for this module in the test code itself.
 ; dependencies[] = simpletest_clone
+; If decide to run the tests, you'll need this patch for simpletest_clone:
+; https://drupal.org/node/1877956

@@ -293,8 +293,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $path_parts = explode('/', $s3_filename);
     if ($path_parts[0] == 'styles') {
       if (!$this->_s3fs_get_object($this->uri)) {
-        array_shift($path_parts);
-        return url('s3/files/styles/' . implode('/', $path_parts), array('absolute' => TRUE));
+        // The style delivery path looks like: s3/files/styles/<style>/...
+        // And $path_parts looks like array('styles', '<style>', ...), so
+        // just add the extra parts to the beginning.
+        array_unshift($path_parts, 's3', 'files');
+        return url(implode('/', $path_parts), array('absolute' => TRUE));
       }
     }
     
