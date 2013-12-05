@@ -52,18 +52,6 @@ else {
       }
     }
     
-    function tearDown() {
-      parent::tearDown();
-      // Empty out the bucket after the test is done.
-      try {
-        $deleted_files_count = $this->s3->clearBucket($this->s3_bucket);
-        debug("Deleted $deleted_files_count file(s) from S3 to clean up after the test.");
-      }
-      catch (Aws\S3\Exception\NoSuchBucketException $e) {
-        $this->bucket_not_found = TRUE;
-      }
-    }
-    
     /**
      * Coverage test for the stream wrapper.
      */

@@ -337,15 +337,20 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
     
     if (!$this->config['use_cname']) {
-      $expires = $url_settings['presigned_url'] ? "+{$url_settings['timeout']} seconds" : NULL;
-      // Due to Amazon's security policies (see Request Parameters section @
-      // http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html),
-      // only signed requests can use request parameters. So, we must provide
-      // an expiry time for any URLs which specify Response* API args.
-      foreach ($url_settings['api_args'] as $key => $arg) {
-        if (strpos($key, 'Response') === 0) {
-          $expires = "+1 year";
-          break;
+      $expires = NULL;
+      if ($url_settings['presigned_url']) {
+        $expires = "+{$url_settings['timeout']} seconds";
+      }
+      else {
+        // Due to Amazon's security policies (see Request Parameters section @
+        // http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html),
+        // only signed requests can use request parameters. So, we must provide
+        // an expiry time for any URLs which specify Response* API args.
+        foreach ($url_settings['api_args'] as $key => $arg) {
+          if (strpos($key, 'Response') === 0) {
+            $expires = "+1 year";
+            break;
+          }
         }
       }
       $url = $this->s3->getObjectUrl($this->config['bucket'], $s3_filename, $expires, $url_settings['api_args']);
@@ -494,8 +499,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_open($uri, $mode, $options, &$opened_path) {
     $this->_debug("stream_open($uri, $mode, $options, $opened_path) called.");
     
-    // We don't care about the binary flag, so strip it out.
     $this->uri = $uri;
+    // We don't care about the binary flag, so strip it out.
     $this->mode = $mode = rtrim($mode, 'bt');
     $this->params = $this->_get_params($uri);
     $errors = array();
@@ -1208,7 +1213,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Get the stream context options available to the current stream
+   * Get the stream context options available to the current stream.
    *
    * @return array
    */
@@ -1273,7 +1278,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     $this->body = $factory->fromRequest($request, array(), array('stream_class' => 'Guzzle\Http\EntityBody'));
     
-    // Wrap the body in a caching entity body if seeking is allowed.
+    // If seeking is allowed, wrap the body in a caching entity body.
     if ($this->_get_option('seekable')) {
       $this->body = new Guzzle\Http\CachingEntityBody($this->body);
     }
@@ -1413,12 +1418,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   /**
    * Logging function used for debugging.
    *
-   * This function only writes to the log if the global variable
-   * $_s3fs_debug is TRUE.
+   * This function only writes anything if the global variable $_s3fs_debug
+   * is TRUE.
    *
    * @param string $msg
    *   The message to debug log.
-   *
    * @param bool $internal
    *   If this is TRUE, don't log $msg unless $_s3fs_debug_internal is TRUE.
    */
