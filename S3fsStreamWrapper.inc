@@ -8,6 +8,9 @@
  * using the "s3://" scheme.
  */
 
+/**
+ * The stream wrapper class.
+ */
 class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   
   /**
@@ -661,7 +664,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // All files uploaded to S3 must be set to public-read, or users' browsers
     // will get PermissionDenied errors, and torrent URLs won't work.
     $upload_params['ACL'] = 'public-read';
-    $upload_params['ContentType'] = s3fsStreamWrapper::getMimeType($this->uri);
+    $upload_params['ContentType'] = S3fsStreamWrapper::getMimeType($this->uri);
     
     try {
       $this->s3->putObject($upload_params);
@@ -1286,10 +1289,19 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     $this->body = $factory->fromRequest($request, array(), array('stream_class' => 'Guzzle\Http\EntityBody'));
     
+    //OLD
     // If seeking is allowed, wrap the body in a caching entity body.
-    if ($this->_get_option('seekable')) {
-      $this->body = new Guzzle\Http\CachingEntityBody($this->body);
+    //if ($this->_get_option('seekable')) {
+    //  $this->body = new Guzzle\Http\CachingEntityBody($this->body);
+    //}
+    //END OLD
+    //EXPERIMENTAL
+    // Wrap the body in an S3fsSeekableCachingEntityBody, so that seeks that
+    // go to not-yet-read sections of the file won't throw exceptions.
+    if (class_exists('S3fsSeekableCachingEntityBody')) {
+      $this->body = new S3fsSeekableCachingEntityBody($this->body);
     }
+    //END EXPERIMENTAL
     
     return TRUE;
   }
@@ -1441,3 +1453,46 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
   }
 }
+
+//EXPERIMENTAL
+
+// Guzzle\Http\CachingEntityBody is only defined once the SDK has been loaded,
+// so we need to load it before we can inherit from it.
+if (function_exists('libraries_load')) {
+  $library = libraries_load('awssdk2');
+  if ($library['loaded']) {
+    /**
+     * A replacement class for CachingEntityBody that serves better for s3fs.
+     *
+     * Any instantiation of this class must be wrapped in a check for its
+     * existence, since it may not be defined under certain circumstances.
+     */
+    class S3fsSeekableCachingEntityBody extends Guzzle\Http\CachingEntityBody {
+      
+      /**
+       * This version of seek() allows seeking past the end of the cache.
+       */
+      public function seek($offset, $whence = SEEK_SET) {
+        if ($whence == SEEK_SET) {
+          $byte = $offset;
+        }
+        else if ($whence == SEEK_CUR) {
+          $byte = $offset + $this->ftell();
+        }
+        else {
+          throw new RuntimeException(__CLASS__ . ' supports only SEEK_SET and SEEK_CUR seek operations');
+        }
+        
+        // If the caller tries to seek past the end of the currently cached
+        // data, read in enough of the remote stream to let the seek occur.
+        while ($byte > $this->body->getSize() && !$this->isConsumed()) {
+          $this->read(16384);
+        }
+        
+        return $this->body->seek($byte);
+      }
+    }
+  }
+}
+
+// END EXPERIMENTAL
