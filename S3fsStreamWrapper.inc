@@ -121,6 +121,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // complaints from the browser about insecure content.
     global $is_https;
     if ($is_https) {
+      // We change the config itself, rather than simply using $is_https in
+      // the following if condition, because $this->config['use_https'] gets
+      // used again later.
       $this->config['use_https'] = TRUE;
     }
     
@@ -188,12 +191,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
+    // Save all the work we just did, so that subsequent S3fsStreamWrapper
+    // constructions don't have to repeat it.
     $settings['config'] = $this->config;
-    // The s3 client is already stored statically, so we don't save it here.
     $settings['domain'] = $this->domain;
     $settings['torrents'] = $this->torrents;
     $settings['presignedURLs'] = $this->presignedURLs;
     $settings['saveas'] = $this->saveas;
+    
     $this->constructed = TRUE;
     $this->_debug('S3fsStreamWrapper constructed.');
   }
