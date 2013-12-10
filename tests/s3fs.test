@@ -139,7 +139,9 @@ else {
       $this->assertTrue($img_file, "Copied the the test image to $img_uri1.");
       
       // Request a derivative.
-      $derivative = $this->drupalGet(image_style_url('thumbnail', $img_uri1));
+      // If you're using Xdebug and the Eclipse IDE, the XDEBUG_SESSION_START
+      // query arg will make this drupalGet() call debuggable.
+      $derivative = $this->drupalGet(image_style_url('thumbnail', $img_uri1), array('query' => array('XDEBUG_SESSION_START' => 'ECLIPSE_DPGP')));
       $this->assertTrue(imagecreatefromstring($derivative), 'The returned derivative is a valid image.');
     }
   } // END S3fsTests class

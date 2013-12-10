@@ -50,7 +50,7 @@ function s3fs_requirements($phase) {
   // Check for the Libraries module. This shouldn't really be needed, but if
   // the user doesn't have Libraries, the error won't be reported correctly.
   if (!function_exists('libraries_detect')) {
-    $requirements['s3fs'] = array(
+    $requirements['s3fs_libraries'] = array(
       'title' => $t('Libraries module'),
       'value' => $t('Not installed.'),
       'description' => $t('S3 File System requires the Libraries module. Please install it from !here.',
@@ -81,6 +81,13 @@ function s3fs_requirements($phase) {
       'severity' => REQUIREMENT_ERROR,
     );
   }
+  
+  // Report the version number of S3 File System on the system status page.
+  $requirements['s3fs_version'] = array(
+    'title' => $t('S3 File System'),
+    'value' => S3FS_VERSION,
+    'severity' => REQUIREMENT_OK,
+  );
   
   return $requirements;
 }

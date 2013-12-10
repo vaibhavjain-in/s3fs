@@ -1289,19 +1289,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     $this->body = $factory->fromRequest($request, array(), array('stream_class' => 'Guzzle\Http\EntityBody'));
     
-    //OLD
-    // If seeking is allowed, wrap the body in a caching entity body.
-    //if ($this->_get_option('seekable')) {
-    //  $this->body = new Guzzle\Http\CachingEntityBody($this->body);
-    //}
-    //END OLD
-    //EXPERIMENTAL
-    // Wrap the body in an S3fsSeekableCachingEntityBody, so that seeks that
-    // go to not-yet-read sections of the file won't throw exceptions.
+    // Wrap the body in an S3fsSeekableCachingEntityBody, so that seeks can
+    // go to not-yet-read sections of the file.
     if (class_exists('S3fsSeekableCachingEntityBody')) {
       $this->body = new S3fsSeekableCachingEntityBody($this->body);
     }
-    //END EXPERIMENTAL
     
     return TRUE;
   }
@@ -1454,8 +1446,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
 }
 
-//EXPERIMENTAL
-
 // Guzzle\Http\CachingEntityBody is only defined once the SDK has been loaded,
 // so we need to load it before we can inherit from it.
 if (function_exists('libraries_load')) {
@@ -1505,5 +1495,3 @@ if (function_exists('libraries_load')) {
     }
   }
 }
-
-// END EXPERIMENTAL
