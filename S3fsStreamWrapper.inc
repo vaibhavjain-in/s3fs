@@ -1471,6 +1471,10 @@ if (function_exists('libraries_load')) {
       
       /**
        * This version of seek() allows seeking past the end of the cache.
+       *
+       * If the caller attempts to seek more than 50 megs into the file,
+       * though, an exception will be thrown, because that would take up too
+       * much memory.
        */
       public function seek($offset, $whence = SEEK_SET) {
         if ($whence == SEEK_SET) {
@@ -1481,6 +1485,13 @@ if (function_exists('libraries_load')) {
         }
         else {
           throw new RuntimeException(__CLASS__ . ' supports only SEEK_SET and SEEK_CUR seek operations');
+        }
+        
+        if ($byte > 52428800) {
+          throw new RuntimeException(
+            "Seeking more than 50 megabytes into a remote file is not supported, due to memory constraints.
+              If you need to bypass this error, please contact the maintainers of S3 File System."
+          );
         }
         
         // If the caller tries to seek past the end of the currently cached

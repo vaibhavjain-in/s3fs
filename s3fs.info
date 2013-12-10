@@ -12,7 +12,7 @@ files[] = S3fsStreamWrapper.inc
 files[] = tests/s3fs.test
 ; s3fs's tests depend on simpletest_clone, but you only need it for the tests,
 ; so I don't want to force everyone to install it. There is an alternate check
-; for this module in the test code itself.
+; for simpletest_clone in the test code itself.
 ; dependencies[] = simpletest_clone
-; If decide to run the tests, you'll need this patch for simpletest_clone:
+; If you decide to run the tests, you'll need this patch for simpletest_clone:
 ; https://drupal.org/node/1877956
