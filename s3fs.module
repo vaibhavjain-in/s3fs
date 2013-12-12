@@ -339,9 +339,9 @@ function _s3fs_refresh_cache($config) {
   // We're done, so replace data in the real table with data from the temp table.
   $transaction = db_transaction();
   try {
-    db_truncate('s3fs_file')->execute();
-    $new_data = db_select('s3fs_file_temp')
-      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
+    db_delete('s3fs_file')->execute();
+    $new_data = db_select('s3fs_file_temp', 's')
+      ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
     db_insert('s3fs_file')
       ->from($new_data)
       ->execute();
