@@ -25,6 +25,47 @@ function s3fs_settings() {
     'sa-east-1' => 'South America - Sao Paulo (sa-east-1)',
   );
   
+  $form['s3fs_credentials'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Amazon Web Services Credentials'),
+    '#description' => t("To configure your Amazon Web Services credentials, enter the values in the appropriate fields below.
+      You may instead set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file.
+      Values set in settings.php will override the values in these fields."),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $settingsconf_access_key = variable_get('awssdk2_access_key', '');
+  $settingsconf_secret_key = variable_get('awssdk2_secret_key', '');
+  $form['s3fs_credentials']['s3fs_awssdk2_access_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amazon Web Services Access Key'),
+    // Note that $config['awssdk2_access_key'] and $settingsconf_access_key do
+    // NOT come from the same variable.
+    '#default_value' => !empty($settingsconf_access_key) ? $settingsconf_access_key : (!empty($config['awssdk2_access_key']) ? $config['awssdk2_access_key'] : ''),
+  );
+  $form['s3fs_credentials']['s3fs_awssdk2_secret_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Amazon Web Services Secret Key'),
+    '#default_value' => !empty($settingsconf_secret_key) ? $settingsconf_secret_key : (!empty($config['awssdk2_secret_key']) ? $config['awssdk2_secret_key'] : ''),
+  );
+  $form['s3fs_credentials']['s3fs_use_instance_profile'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use EC2 Instance Profile Credentials'),
+    '#default_value' => !empty($config['use_instance_profile']) ? $config['use_instance_profile'] : FALSE,
+    '#description' => t('If your Drupal site is running on an Amazon EC2 server, you may use the Instance Profile Credentials from that server
+      rather than setting your AWS credentials directly.'),
+  );
+  $form['s3fs_credentials']['awssdk2_default_cache_config'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Default Cache Location'),
+    '#description' => t('The default cache location for your EC2 Instance Profile Credentials.'),
+    '#states' => array(
+      'visible' => array(
+        ':input[id=edit-s3fs-use-instance-profile]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+  
   $form['s3fs_bucket'] = array(
     '#type'           => 'textfield',
     '#title'          => t('S3 Bucket Name'),
@@ -42,7 +83,7 @@ function s3fs_settings() {
     '#type'          => 'checkbox',
     '#title'         => t('Enable CNAME'),
     '#description'   => t('Serve files from a custom domain by using an appropriately named bucket, e.g. "mybucket.mydomain.com".'),
-    '#default_value' => !empty($config['use_cname']) ? $config['use_cname'] : '',
+    '#default_value' => !empty($config['use_cname']) ? $config['use_cname'] : FALSE,
   );
   $form['s3fs_cname_settings_fieldset'] = array(
     '#type' => 'fieldset',
