@@ -1101,6 +1101,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     
     // Folders only exist in the cache, so we don't need to query S3.
+    // Since they're stored with no ending slash, so we need to trim it.
+    $uri = rtrim($uri, '/');
     $metadata = $this->_read_cache($uri);
     return $metadata ? $metadata['dir'] : FALSE;
   }
