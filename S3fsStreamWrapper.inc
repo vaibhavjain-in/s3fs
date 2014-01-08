@@ -314,6 +314,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       'torrent' => FALSE,
       'presigned_url' => FALSE,
       'timeout' => 60,
+      'forced_saveas' => FALSE,
       'api_args' => array('Scheme' => !empty($this->config['use_https']) ? 'https' : 'http'),
     );
     
@@ -331,13 +332,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       if (preg_match("^$blob^", $s3_filename)) {
         $filename = basename($s3_filename);
         $url_settings['api_args']['ResponseContentDisposition'] = "attachment; filename=\"$filename\"";
-        break;
-      }
-    }
-    // Torrents.
-    foreach ($this->torrents as $blob) {
-      if (preg_match("^$blob^", $s3_filename)) {
-        $url_settings['torrent'] = TRUE;
+        $url_settings['forced_saveas'] = TRUE;
         break;
       }
     }
@@ -369,13 +364,16 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $url = "{$this->domain}/$s3_filename";
     }
     
-    // Creating a torrent URL requires appending "?torrent" to the end.
-    // However, torrents can only be created for publicly-accessible files:
+    // Torrents can only be created for publicly-accessible files:
     // https://forums.aws.amazon.com/thread.jspa?threadID=140949
-    // So only plain URLs with no other GET args can be converted to torrents.
-    if ($url_settings['torrent']) {
-      if (strpos($url, '?') === FALSE) {
-        $url .= '?torrent';
+    // So Forced SaveAs and Presigned URLs cannot be served as torrents.
+    if (!$url_settings['forced_saveas'] && !$url_settings['presigned_url']) {
+      foreach ($this->torrents as $blob) {
+        if (preg_match("^$blob^", $s3_filename)) {
+          // A torrent URL is just a plain URL with "?torrent" on the end.
+          $url .= '?torrent';
+          break;
+        }
       }
     }
     
