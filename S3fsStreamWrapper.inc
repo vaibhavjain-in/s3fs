@@ -317,30 +317,28 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       'api_args' => array('Scheme' => !empty($this->config['use_https']) ? 'https' : 'http'),
     );
     
-    // Loop through the torrent url blobs to see if any match the filename.
-    foreach ($this->torrents as $blob) {
-      // ^ is used as the delimeter because it's an illegal character in URLs.
-      if (preg_match("^$blob^", $s3_filename)) {
-        $url_settings['torrent'] = TRUE;
-        break;
-      }
-    }
     // Presigned URLs.
     foreach ($this->presignedURLs as $blob => $timeout) {
+      // ^ is used as the delimeter because it's an illegal character in URLs.
       if (preg_match("^$blob^", $s3_filename)) {
         $url_settings['presigned_url'] = TRUE;
         $url_settings['timeout'] = $timeout;
         break;
       }
     }
-    // Forced "Save As".
-    if (!$url_settings['torrent']) {
-      foreach ($this->saveas as $blob) {
-        if (preg_match("^$blob^", $s3_filename)) {
-          $filename = basename($s3_filename);
-          $url_settings['api_args']['ResponseContentDisposition'] = "attachment; filename=\"$filename\"";
-          break;
-        }
+    // Forced Save As.
+    foreach ($this->saveas as $blob) {
+      if (preg_match("^$blob^", $s3_filename)) {
+        $filename = basename($s3_filename);
+        $url_settings['api_args']['ResponseContentDisposition'] = "attachment; filename=\"$filename\"";
+        break;
+      }
+    }
+    // Torrents.
+    foreach ($this->torrents as $blob) {
+      if (preg_match("^$blob^", $s3_filename)) {
+        $url_settings['torrent'] = TRUE;
+        break;
       }
     }
     
@@ -355,11 +353,12 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       else {
         // Due to Amazon's security policies (see Request Parameters section @
         // http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html),
-        // only signed requests can use request parameters. So, we must provide
-        // an expiry time for any URLs which specify Response* API args.
+        // only signed requests can use request parameters.
+        // Thus, we must provide an expiry time for any URLs which specify
+        // Response* API args. Currently, this only includes "Forced Save As".
         foreach ($url_settings['api_args'] as $key => $arg) {
           if (strpos($key, 'Response') === 0) {
-            $expires = "+1 year";
+            $expires = "+10 years";
             break;
           }
         }
@@ -370,15 +369,16 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $url = "{$this->domain}/$s3_filename";
     }
     
-    // The old SDK accepted a parameter to its "get url" function that did
-    // this for us, but the new SDK does not. So we have to do it manually.
+    // Creating a torrent URL requires appending "?torrent" to the end.
+    // However, torrents can only be created for publicly-accessible files:
+    // https://forums.aws.amazon.com/thread.jspa?threadID=140949
+    // So only plain URLs with no other GET args can be converted to torrents.
     if ($url_settings['torrent']) {
-      // Torrent URLs don't work with Presigned URLs, so only add the torrent
-      // query arg if there are no other GET args.
       if (strpos($url, '?') === FALSE) {
         $url .= '?torrent';
       }
     }
+    
     return $url;
   }
   

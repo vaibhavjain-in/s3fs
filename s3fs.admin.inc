@@ -138,27 +138,17 @@ function s3fs_settings() {
     '#title'         => t('Ignore the file metadata cache'),
     '#description'   => t("If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache.
        This will make all filesystem reads hit S3 instead of the cache.<br>
-       Please be aware that this causes an ENORMOUS performance loss, and should never be enabled on a production site."),
+       <b>This causes s3fs to work extremely slowly, and should never be enabled on a production site.</b>"),
     '#default_value' => !empty($config['ignore_cache']) ? $config['ignore_cache'] : FALSE,
   );
   
-  $form['s3fs_torrents'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Torrents'),
-    '#description' => t('A list of paths that should be delivered through a torrent url.<br>
-      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
-      <b>This feature is incompatible with the "Presigned URLs" and "Force Save As" options.</b>',
-      array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
-    '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',
-    '#rows' => 5,
-  );
   $form['s3fs_presigned_urls'] = array(
     '#type' => 'textarea',
     '#title' => t('Presigned URLs'),
     '#description' => t('A list of timeouts and paths that should be delivered through a presigned url.<br>
       Enter one value per line, in the format timeout|path. e.g. "60|private_files/*". Paths use regex patterns as per !link.
       If no timeout is provided, it defaults to 60 seconds.<br>
-      <b>This feature does not work when "Enable CNAME" is checked.</b>',
+      <b>This feature does not work when "Enable CNAME" is used.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['presigned_urls']) ? $config['presigned_urls'] : '',
     '#rows' => 5,
@@ -168,10 +158,19 @@ function s3fs_settings() {
     '#title' => t('Force Save As'),
     '#description' => t('A list of paths for which users will be forced to save the file, rather than displaying it in the browser.<br>
       Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
-      Please be aware that due to Amazon\'s security policies, URLs generated with this option will expire after 1 year. Therefore, users are strongly advised to share the page that contains the URLs, rather than sharing the URLs directly.<br>
-      <b>This feature does not work when "Enable CNAME" is checked.</b>',
+      <b>This feature does not work when "Enable CNAME" is used.</b>',
       array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
     '#default_value' => !empty($config['saveas']) ? $config['saveas'] : '',
+    '#rows' => 5,
+  );
+  $form['s3fs_torrents'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Torrents'),
+    '#description' => t('A list of paths that should be delivered via BitTorrent.<br>
+      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
+      <b>Paths which are already set as Presigned URLs or Forced Save As cannot be delivered as torrents.</b>',
+      array('!link' => l(t('preg_match'), 'http://php.net/preg_match'))),
+    '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',
     '#rows' => 5,
   );
   
