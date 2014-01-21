@@ -78,6 +78,7 @@ else {
       $file_contents = file_get_contents(drupal_get_path('module', 's3fs') . '/tests/test.txt');
       
       $this->assertTrue(drupal_mkdir($this->remote_tests_folder_uri), 'Exercised mkdir to create the testing directory (in the DB).');
+      $this->assertTrue(is_dir($this->remote_tests_folder_uri), 'Make sure the folder we just created correctly reports that it is a folder.');
       
       debug("Exercising file upload functionality.");
       $start_time = time();
