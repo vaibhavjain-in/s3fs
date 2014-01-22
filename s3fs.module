@@ -511,10 +511,7 @@ function _s3fs_get_config() {
 }
 
 /**
- * Helper function that defines the s3fs_file table.
- *
- * This function exists so that the schema definition can be available to both
- * the hook_schema() implementation and the metadata refresh function.
+ * Helper function that describes the s3fs_file table.
  *
  * @return array
  *   A Drupal schema definition array.
