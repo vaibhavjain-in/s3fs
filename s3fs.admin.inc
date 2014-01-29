@@ -36,6 +36,7 @@ function s3fs_settings() {
   );
   $settingsconf_access_key = variable_get('awssdk2_access_key', '');
   $settingsconf_secret_key = variable_get('awssdk2_secret_key', '');
+  $settingsconf_default_cache_config = variable_get('awssdk2_default_cache_config', '');
   $form['s3fs_credentials']['s3fs_awssdk2_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Amazon Web Services Access Key'),
@@ -59,6 +60,8 @@ function s3fs_settings() {
     '#type' => 'textfield',
     '#title' => t('Default Cache Location'),
     '#description' => t('The default cache location for your EC2 Instance Profile Credentials.'),
+    //'#default_value' => !empty($config['use_instance_profile']) ? $config['use_instance_profile'] : FALSE,
+    '#default_value' => !empty($settingsconf_default_cache_config) ? $settingsconf_default_cache_config : (!empty($config['awssdk2_default_cache_config']) ? $config['awssdk2_default_cache_config'] : ''),
     '#states' => array(
       'visible' => array(
         ':input[id=edit-s3fs-use-instance-profile]' => array('checked' => TRUE),
