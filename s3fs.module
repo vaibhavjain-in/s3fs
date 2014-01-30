@@ -132,40 +132,28 @@ function _s3fs_image_style_deliver() {
   // filename.
   $args = func_get_args();
   $style = array_shift($args);
-  // The second parameter ($scheme) is unused, since we know we're using s3://.
-  array_shift($args);
+  $scheme = array_shift($args);
   $filename = implode('/', $args);
-
+  
   $valid = !empty($style);
   if (!variable_get('image_allow_insecure_derivatives', FALSE) || strpos(ltrim($filename, '\/'), 'styles/') === 0) {
-    $valid = $valid && isset($_GET[IMAGE_DERIVATIVE_TOKEN]) && $_GET[IMAGE_DERIVATIVE_TOKEN] === image_style_path_token($style['name'], "s3://$filename");
+    $valid = $valid && isset($_GET[IMAGE_DERIVATIVE_TOKEN]) && $_GET[IMAGE_DERIVATIVE_TOKEN] === image_style_path_token($style['name'], "$scheme://$filename");
   }
   if (!$valid) {
     return MENU_ACCESS_DENIED;
   }
-
-  $image_uri = "s3://$filename";
+  
+  $image_uri = "$scheme://$filename";
   $derivative_uri = image_style_path($style['name'], $image_uri);
-
-  // Copy the image from S3 into a local temporary file.
-  $data = file_get_contents($image_uri);
-  $temp_name = drupal_tempnam('temporary://', 's3image');
-  if (file_put_contents($temp_name, $data) === FALSE) {
-    drupal_set_message(t('The image derivative for %uri could not be created.', array('%uri' => $image_uri)), 'error');
-    watchdog('S3 File System', 'Unable to store original image %path to a temporary location for image style generation.', array('%path' => $image_uri));
-    drupal_add_http_header('Status', '500 Internal Server Error');
-    print t('Error generating image.');
-    drupal_exit();
-  }
-
+  
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
   $lock_name = '_s3fs_image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
   if (!file_exists($derivative_uri)) {
     $lock_acquired = lock_acquire($lock_name);
     if (!$lock_acquired) {
-      // Tell client to retry again in 3 seconds. No browsers are currently
-      // known to support Retry-After, though.
+      // Tell client to retry again in 3 seconds. Currently no browsers are known
+      // to support Retry-After.
       drupal_add_http_header('Status', '503 Service Unavailable');
       drupal_add_http_header('Retry-After', 3);
       print t('Image generation in progress. Try again shortly.');
@@ -174,14 +162,13 @@ function _s3fs_image_style_deliver() {
   }
 
   // Try to generate the image, unless another thread just did it while we were
-  // acquiring the lock and setting up.
-  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $temp_name, $derivative_uri);
-  drupal_unlink($temp_name);
-
+  // acquiring the lock.
+  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
+  
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
   }
-
+  
   if ($success) {
     // Perform a 302 Redirect to the new image derivative.
     drupal_goto(file_create_url($derivative_uri));
