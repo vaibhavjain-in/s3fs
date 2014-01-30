@@ -255,8 +255,15 @@ function _s3fs_validate_config($config) {
  * Iterates over the full list of objects in the S3 bucket, storing their
  * metadata in the cache. Then creates the ancestor folders for those files.
  *
+ * To refresh only a part of the cache, supply a path as $partial, and it will
+ * only refresh files that are children of that path.
+ *
  * @param array $config
  *   An s3fs configuration array.
+ *
+ * @param string $partial
+ *   The path to refresh, if not the root of the bucket. NULL will cause
+ *   all files in the bucket to be refreshed.
  */
 function _s3fs_refresh_cache($config, $partial=NULL) {
   // Bomb out with an error if our configuration settings are invalid.
@@ -269,7 +276,11 @@ function _s3fs_refresh_cache($config, $partial=NULL) {
   // Set up the iterator that will loop over all the objects in the bucket.
   $page_size = 1000;
   $file_metadata_list = array();
-  $iterator = $s3->getListObjectsIterator(array('Bucket' => $config['bucket']));
+  $iterator_args = array('Bucket' => $config['bucket']);
+  if (!empty($partial)) {
+    $iterator_args['Prefix'] = $partial;
+  }
+  $iterator = $s3->getListObjectsIterator($iterator_args);
   $iterator->setPageSize($page_size);
 
   // The $folders array is an associative array keyed by folder names, which
@@ -305,6 +316,7 @@ function _s3fs_refresh_cache($config, $partial=NULL) {
     _s3fs_write_metadata($file_metadata_list, $folders);
   });
 
+  $partial = "s3://$partial";
   foreach ($iterator as $s3_metadata) {
     $uri = "s3://{$s3_metadata['Key']}";
 
@@ -358,8 +370,8 @@ function _s3fs_refresh_cache($config, $partial=NULL) {
         ->condition('uri', db_like($partial) .'%', 'LIKE')
         ->execute();
       db_query("INSERT INTO {s3fs_file} SELECT * FROM {s3fs_file_temp}");
-      db_drop_table('s3fs_file_temp');
     }
+    db_drop_table('s3fs_file_temp');
   }
   catch (Exception $e) {
     $transaction->rollback();
