@@ -56,7 +56,7 @@ function s3fs_libraries_info() {
  */
 function s3fs_menu() {
   $items = array();
-  
+
   $items['admin/config/media/s3fs/settings'] = array(
     'title' => 'S3 File System Settings',
     'description' => 'Configure S3 File System settings.',
@@ -82,7 +82,7 @@ function s3fs_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-  
+
   return $items;
 }
 
@@ -132,28 +132,40 @@ function _s3fs_image_style_deliver() {
   // filename.
   $args = func_get_args();
   $style = array_shift($args);
-  $scheme = array_shift($args);
+  // The second parameter ($scheme) is unused, since we know we're using s3://.
+  array_shift($args);
   $filename = implode('/', $args);
-  
+
   $valid = !empty($style);
   if (!variable_get('image_allow_insecure_derivatives', FALSE) || strpos(ltrim($filename, '\/'), 'styles/') === 0) {
-    $valid = $valid && isset($_GET[IMAGE_DERIVATIVE_TOKEN]) && $_GET[IMAGE_DERIVATIVE_TOKEN] === image_style_path_token($style['name'], "$scheme://$filename");
+    $valid = $valid && isset($_GET[IMAGE_DERIVATIVE_TOKEN]) && $_GET[IMAGE_DERIVATIVE_TOKEN] === image_style_path_token($style['name'], "s3://$filename");
   }
   if (!$valid) {
     return MENU_ACCESS_DENIED;
   }
-  
-  $image_uri = "$scheme://$filename";
+
+  $image_uri = "s3://$filename";
   $derivative_uri = image_style_path($style['name'], $image_uri);
-  
+
+  // Copy the image from S3 into a local temporary file.
+  $data = file_get_contents($image_uri);
+  $temp_name = drupal_tempnam('temporary://', 's3image');
+  if (file_put_contents($temp_name, $data) === FALSE) {
+    drupal_set_message(t('The image derivative for %uri could not be created.', array('%uri' => $image_uri)), 'error');
+    watchdog('S3 File System', 'Unable to store original image %path to a temporary location for image style generation.', array('%path' => $image_uri));
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    print t('Error generating image.');
+    drupal_exit();
+  }
+
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
   $lock_name = '_s3fs_image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
   if (!file_exists($derivative_uri)) {
     $lock_acquired = lock_acquire($lock_name);
     if (!$lock_acquired) {
-      // Tell client to retry again in 3 seconds. Currently no browsers are known
-      // to support Retry-After.
+      // Tell client to retry again in 3 seconds. No browsers are currently
+      // known to support Retry-After, though.
       drupal_add_http_header('Status', '503 Service Unavailable');
       drupal_add_http_header('Retry-After', 3);
       print t('Image generation in progress. Try again shortly.');
@@ -162,13 +174,14 @@ function _s3fs_image_style_deliver() {
   }
 
   // Try to generate the image, unless another thread just did it while we were
-  // acquiring the lock.
-  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
-  
+  // acquiring the lock and setting up.
+  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $temp_name, $derivative_uri);
+  drupal_unlink($temp_name);
+
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
   }
-  
+
   if ($success) {
     // Perform a 302 Redirect to the new image derivative.
     drupal_goto(file_create_url($derivative_uri));
@@ -196,7 +209,7 @@ function _s3fs_validate_config($config) {
     form_set_error('s3fs_domain', 'You must specify a CDN Domain Name to use the CNAME feature.');
     return FALSE;
   }
-  
+
   try {
     $s3 = _s3fs_get_amazons3_client($config);
   }
@@ -204,7 +217,7 @@ function _s3fs_validate_config($config) {
     form_set_error('s3fs_bucket', $e->getMessage());
     return FALSE;
   }
-  
+
   // Test the connection to S3, and the bucket name.
   try {
     // listObjects() will trigger descriptive exceptions if the credentials,
@@ -232,7 +245,7 @@ function _s3fs_validate_config($config) {
       array('%exception' => get_class($e), '%error' => $e->getMessage())));
     return FALSE;
   }
-  
+
   return TRUE;
 }
 
@@ -245,20 +258,20 @@ function _s3fs_validate_config($config) {
  * @param array $config
  *   An s3fs configuration array.
  */
-function _s3fs_refresh_cache($config) {
+function _s3fs_refresh_cache($config, $partial=NULL) {
   // Bomb out with an error if our configuration settings are invalid.
   if (!_s3fs_validate_config($config)) {
     form_set_error('s3fs_refresh_cache][refresh', t('Unable to validate S3 configuration settings.'));
     return;
   }
   $s3 = _s3fs_get_amazons3_client($config);
-  
+
   // Set up the iterator that will loop over all the objects in the bucket.
   $page_size = 1000;
   $file_metadata_list = array();
   $iterator = $s3->getListObjectsIterator(array('Bucket' => $config['bucket']));
   $iterator->setPageSize($page_size);
-  
+
   // The $folders array is an associative array keyed by folder names, which
   // is constructed as each filename is written to the DB. After all the files
   // are written, the folder names are converted to metadata and written.
@@ -271,7 +284,7 @@ function _s3fs_refresh_cache($config) {
   foreach ($existing_folders as $folder_uri) {
     $folders[$folder_uri] = TRUE;
   }
-  
+
   // Create the temp table, into which all the refreshed data will be written.
   // After the full refresh is complete, the temp table will be swapped in.
   $schema = _s3fs_schema();
@@ -284,31 +297,33 @@ function _s3fs_refresh_cache($config) {
   }
   // db_create_table() ignores the 'collation' option. >_<
   db_query("alter table s3fs_file_temp convert to character set utf8 collate utf8_bin;");
-  
+
   // Set up an event listener to consume each page of results before the next
   // request is made.
   $dispatcher = $iterator->getEventDispatcher();
   $dispatcher->addListener('resource_iterator.before_send', function($event) use (&$file_metadata_list, &$folders) {
     _s3fs_write_metadata($file_metadata_list, $folders);
   });
-  
+
   foreach ($iterator as $s3_metadata) {
     $uri = "s3://{$s3_metadata['Key']}";
-    
-    if ($uri[strlen($uri) - 1] == '/') {
-      // Treat objects in S3 whose filenames end in a '/' as folders.
-      // But we don't store the '/' itself as part of the folder's metadata.
-      $folders[rtrim($uri, '/')] = TRUE;
-    }
-    else {
-      // Treat the rest of the files normally.
-      $file_metadata_list[] = _s3fs_convert_metadata($uri, $s3_metadata);
+
+    if (empty($partial) || strpos($uri, $partial) === 0) {
+      if ($uri[strlen($uri) - 1] == '/') {
+        // Treat objects in S3 whose filenames end in a '/' as folders.
+        // But we don't store the '/' itself as part of the folder's metadata.
+        $folders[rtrim($uri, '/')] = TRUE;
+      }
+      else {
+        // Treat the rest of the files normally.
+        $file_metadata_list[] = _s3fs_convert_metadata($uri, $s3_metadata);
+      }
     }
   }
   // Push the last page of metadata to the DB. The event listener doesn't fire
   // after the last page is done, so we have to do it manually.
   _s3fs_write_metadata($file_metadata_list, $folders);
-  
+
   // Now that the $folders array contains all the ancestors of every file in
   // the cache, as well as the existing folders from before the refresh,
   // write those folders to the temp table.
@@ -316,24 +331,35 @@ function _s3fs_refresh_cache($config) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
     foreach ($folders as $folder_uri => $ph) {
-      $metadata = _s3fs_convert_metadata($folder_uri, array());
-      $insert_query->values($metadata);
+      if (empty($partial) || strpos($folder_uri, $partial) === 0) {
+        $metadata = _s3fs_convert_metadata($folder_uri, array());
+        $insert_query->values($metadata);
+      }
     }
     $insert_query->execute();
   }
-  
+
   // We're done, so replace data in the real table with data from the temp table.
   $transaction = db_transaction();
   try {
+    if (empty($partial)) {
       // Even though it is slower than using db_rename_table, we must copy the 
       // rows between the tables. This allows it to be rolled back if the transaction
       // fails. See https://dev.mysql.com/doc/refman/5.0/en/implicit-commit.html
-    db_delete('s3fs_file')->execute();
-    $new_data = db_select('s3fs_file_temp', 's')
-      ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
-    db_insert('s3fs_file')
-      ->from($new_data)
-      ->execute();
+      db_delete('s3fs_file')->execute();
+      $new_data = db_select('s3fs_file_temp', 's')
+        ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
+      db_insert('s3fs_file')
+        ->from($new_data)
+        ->execute();
+    }
+    else {
+      db_delete('s3fs_file')
+        ->condition('uri', db_like($partial) .'%', 'LIKE')
+        ->execute();
+      db_query("INSERT INTO {s3fs_file} SELECT * FROM {s3fs_file_temp}");
+      db_drop_table('s3fs_file_temp');
+    }
   }
   catch (Exception $e) {
     $transaction->rollback();
@@ -343,7 +369,7 @@ function _s3fs_refresh_cache($config) {
   }
   // Destroying the transaction variable is the only way to explicitly commit.
   unset($transaction);
-  
+
   drupal_set_message(t('S3 File System cache refreshed.'));
 }
 
@@ -364,7 +390,7 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
     foreach ($file_metadata_list as $metadata) {
       // Write the file metadata to the DB.
       $insert_query->values($metadata);
-      
+
       // Add the ancestor folders of this file to the $folders array.
       $uri = dirname($metadata['uri']);
       // Loop through each ancestor folder until we get to 's3://'.
@@ -375,7 +401,7 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
     }
     $insert_query->execute();
   }
-  
+
   // Empty out the file array, so it can be re-filled by the next request.
   $file_metadata_list = array();
 }
@@ -395,7 +421,7 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
  */
 function _s3fs_convert_metadata($uri, $s3_metadata) {
   $metadata = array('uri' => $uri);
-  
+
   if (empty($s3_metadata)) {
     // The caller wants directory metadata, so invent some.
     $metadata['dir'] = 1;
@@ -436,7 +462,7 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
  */
 function _s3fs_get_amazons3_client($config) {
   static $s3;
-  
+
   if (!isset($s3)) {
     // Try to get the access/secret keys from settings.php.
     $access_key = variable_get('awssdk2_access_key', FALSE);
@@ -449,7 +475,7 @@ function _s3fs_get_amazons3_client($config) {
     // Check if the user wants to use Instance Profile Credentials.
     $use_instance_profile = isset($config['use_instance_profile']) ? $config['use_instance_profile'] : FALSE;
     $default_cache_config = variable_get('awssdk2_default_cache_config', '');
-    
+
     $library = libraries_load('awssdk2');
     if (!$library['loaded']) {
       throw new S3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
@@ -488,7 +514,7 @@ function _s3fs_get_amazons3_client($config) {
       $s3->setBaseURL($config['hostname']);
     }
   }
-  
+
   return $s3;
 }
 
@@ -520,7 +546,10 @@ function _s3fs_get_config() {
 }
 
 /**
- * Helper function that describes the s3fs_file table.
+ * Helper function that defines the s3fs_file table.
+ *
+ * This function exists so that the schema definition can be available to both
+ * the hook_schema() implementation and the metadata refresh function.
  *
  * @return array
  *   A Drupal schema definition array.
