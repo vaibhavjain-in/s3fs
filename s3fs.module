@@ -325,6 +325,9 @@ function _s3fs_refresh_cache($config) {
   // We're done, so replace data in the real table with data from the temp table.
   $transaction = db_transaction();
   try {
+    // Even though it is slower than using db_rename_table, we must copy the 
+    // rows between the tables. This allows it to be rolled back if the transaction
+    // fails. See https://dev.mysql.com/doc/refman/5.0/en/implicit-commit.html
     db_delete('s3fs_file')->execute();
     $new_data = db_select('s3fs_file_temp', 's')
       ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
