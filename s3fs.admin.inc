@@ -60,7 +60,6 @@ function s3fs_settings() {
     '#type' => 'textfield',
     '#title' => t('Default Cache Location'),
     '#description' => t('The default cache location for your EC2 Instance Profile Credentials.'),
-    //'#default_value' => !empty($config['use_instance_profile']) ? $config['use_instance_profile'] : FALSE,
     '#default_value' => !empty($settingsconf_default_cache_config) ? $settingsconf_default_cache_config : (!empty($config['awssdk2_default_cache_config']) ? $config['awssdk2_default_cache_config'] : ''),
     '#states' => array(
       'visible' => array(
@@ -143,6 +142,13 @@ function s3fs_settings() {
        This will make all filesystem reads hit S3 instead of the cache.<br>
        <b>This causes s3fs to work extremely slowly, and should never be enabled on a production site.</b>"),
     '#default_value' => !empty($config['ignore_cache']) ? $config['ignore_cache'] : FALSE,
+  );
+  $form['s3fs_prefix'] = array(
+    '#type'           => 'textfield',
+    '#title'          => t('Partial Refresh Prefix'),
+    '#default_value'  => !empty($config['prefix']) ? $config['prefix'] : '',
+    '#description'   => t('If you want the "Refresh file metadata cache" action to refresh only some of the contents of your bucket, provide a file path prefix in this field.<br>
+      For example, setting this option to "images/" will refresh only the files with a URI that matches s3://images/*. This setting is case sensitive.'),
   );
   
   $form['s3fs_presigned_urls'] = array(
