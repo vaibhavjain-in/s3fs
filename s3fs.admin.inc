@@ -56,7 +56,7 @@ function s3fs_settings() {
     '#description' => t('If your Drupal site is running on an Amazon EC2 server, you may use the Instance Profile Credentials from that server
       rather than setting your AWS credentials directly.'),
   );
-  $form['s3fs_credentials']['awssdk2_default_cache_config'] = array(
+  $form['s3fs_credentials']['s3fs_awssdk2_default_cache_config'] = array(
     '#type' => 'textfield',
     '#title' => t('Default Cache Location'),
     '#description' => t('The default cache location for your EC2 Instance Profile Credentials.'),

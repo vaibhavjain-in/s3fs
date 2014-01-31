@@ -544,13 +544,10 @@ function _s3fs_get_config() {
   // from settings.php.
   global $conf;
   $config = array();
-  $prefixes = array('s3fs_', 'awssdk2_');
-  foreach ($prefixes as $prefix) {
-    foreach ($conf as $key => $value) {
-      if (strpos($key, $prefix) === 0) {
-        $shortname = str_replace($prefix, '', $key);
-        $config[$shortname] = $value;
-      }
+  foreach ($conf as $key => $value) {
+    if (substr($key, 0, 5) == 's3fs_') {
+      $shortname = str_replace('s3fs_', '', $key);
+      $config[$shortname] = $value;
     }
   }
   return $config;
