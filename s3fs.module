@@ -326,6 +326,10 @@ function _s3fs_refresh_cache($config) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid'));
     foreach ($folders as $folder_uri => $ph) {
+      // If it's set, exclude any folders which don't match the prefix.
+      if (!empty($config['prefix']) && strpos($folder_uri, "s3://{$config['prefix']}") === FALSE) {
+        continue;
+      }
       $metadata = _s3fs_convert_metadata($folder_uri, array());
       $insert_query->values($metadata);
     }
