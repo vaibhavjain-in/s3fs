@@ -194,7 +194,7 @@ function s3fs_install() {
   // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
   // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
   // 'utf8_bin' collation fulfills our needs.
-  db_query("alter table s3fs_file convert to character set utf8 collate utf8_bin;");
+  db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
 }
 
 /**
@@ -245,7 +245,7 @@ function s3fs_update_7002() {
   // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
   // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
   // 'utf8_bin' collation fulfills our needs.
-  db_query("alter table s3fs_file convert to character set utf8 collate utf8_bin;");
+  db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
 }
 
 /**
