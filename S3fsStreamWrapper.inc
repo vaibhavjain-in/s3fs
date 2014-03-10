@@ -130,7 +130,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $this->config['use_https'] = TRUE;
     }
     
-    if ($this->config['use_https']) {
+    if (!empty($this->config['use_https'])) {
       $scheme = 'https';
       $this->_debug('Using HTTPS.');
     }
@@ -141,7 +141,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     // CNAME support for customizing S3 URLs.
     // If use_cname is not enabled, file URLs do not use $this->domain.
-    if ($this->config['use_cname']) {
+    if (!empty($this->config['use_cname']) && !empty($this->config['domain'])) {
       $domain = check_url($this->config['domain']);
       if ($domain) {
         // If domain is set to a root-relative path, add the hostname back in.
@@ -340,7 +340,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Allow other modules to change the URL settings.
     module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
     
-    if (!$this->config['use_cname']) {
+    if (!empty($this->config['use_cname'])) {
       $expires = NULL;
       if ($url_settings['presigned_url']) {
         $expires = "+{$url_settings['timeout']} seconds";

@@ -34,21 +34,23 @@ function s3fs_settings() {
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  $settingsconf_access_key = variable_get('awssdk2_access_key', '');
-  $settingsconf_secret_key = variable_get('awssdk2_secret_key', '');
-  $settingsconf_default_cache_config = variable_get('awssdk2_default_cache_config', '');
+  
   $form['s3fs_credentials']['s3fs_awssdk2_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Amazon Web Services Access Key'),
-    // Note that $config['awssdk2_access_key'] and $settingsconf_access_key do
-    // NOT come from the same variable.
-    '#default_value' => !empty($settingsconf_access_key) ? $settingsconf_access_key : (!empty($config['awssdk2_access_key']) ? $config['awssdk2_access_key'] : ''),
+    '#default_value' => ($access_key = !empty($config['awssdk2_access_key']) ? $config['awssdk2_access_key'] : ''),
   );
+  // Override with awssdk2_access_key from settings.php, if set.
+  $form['s3fs_credentials']['s3fs_awssdk2_access_key']['#default_value'] = variable_get('awssdk2_access_key', $access_key);
+  
   $form['s3fs_credentials']['s3fs_awssdk2_secret_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Amazon Web Services Secret Key'),
-    '#default_value' => !empty($settingsconf_secret_key) ? $settingsconf_secret_key : (!empty($config['awssdk2_secret_key']) ? $config['awssdk2_secret_key'] : ''),
+    '#default_value' => ($secret_key = !empty($config['awssdk2_secret_key']) ? $config['awssdk2_secret_key'] : ''),
   );
+  // Override with awssdk2_secret_key from settings.php, if set.
+  $form['s3fs_credentials']['s3fs_awssdk2_secret_key']['#default_value'] = variable_get('awssdk2_secret_key', $secret_key);
+  
   $form['s3fs_credentials']['s3fs_use_instance_profile'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use EC2 Instance Profile Credentials'),
@@ -60,13 +62,15 @@ function s3fs_settings() {
     '#type' => 'textfield',
     '#title' => t('Default Cache Location'),
     '#description' => t('The default cache location for your EC2 Instance Profile Credentials.'),
-    '#default_value' => !empty($settingsconf_default_cache_config) ? $settingsconf_default_cache_config : (!empty($config['awssdk2_default_cache_config']) ? $config['awssdk2_default_cache_config'] : ''),
+    '#default_value' => ($cache_config = !empty($config['awssdk2_default_cache_config']) ? $config['awssdk2_default_cache_config'] : ''),
     '#states' => array(
       'visible' => array(
         ':input[id=edit-s3fs-use-instance-profile]' => array('checked' => TRUE),
       ),
     ),
   );
+  // Override with awssdk2_default_cache_config from settings.php, if set.
+  $form['s3fs_credentials']['s3fs_awssdk2_default_cache_config']['#default_value'] = variable_get('awssdk2_default_cache_config', $cache_config);
   
   $form['s3fs_bucket'] = array(
     '#type'           => 'textfield',

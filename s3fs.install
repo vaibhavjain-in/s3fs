@@ -224,17 +224,25 @@ function s3fs_update_7000() {
  * Variable updates.
  */
 function s3fs_update_7001() {
-  // Rename s3fs_customhost to s3fs_use_customhost.
+  // Rename s3fs_customhost to s3fs_use_customhost. And since the code now
+  // assumes that the variable is set, set it to FALSE if it's not.
   $customhost = variable_get('s3fs_customhost', 'unset');
   if ($customhost !== 'unset') {
     variable_set('s3fs_use_customhost', $customhost);
     variable_del('s3fs_customhost');
   }
+  else {
+    variable_set('s3fs_use_customhost', FALSE);
+  }
+  
   // Rename s3fs_cname to s3fs_use_cname.
   $cname = variable_get('s3fs_cname', 'unset');
   if ($cname !== 'unset') {
     variable_set('s3fs_use_cname', $cname);
     variable_del('s3fs_cname');
+  }
+  else {
+    variable_set('s3fs_use_cname', FALSE);
   }
 }
 
