@@ -48,6 +48,7 @@ $conf['awssdk2_secret_key'] = 'YOUR SECRET KEY';
 Configure your setttings for S3 File System (including your S3 bucket name) at
 /admin/config/media/s3fs/settings
 
+==================== ESSENTAL STEP! DO NOT SKIP THIS! =========================
 With the settings saved, go to /admin/config/media/s3fs/actions to refresh the
 file metadata cache. This will copy the filenames and attributes for every
 existing file in your S3 bucket into Drupal's database. This can take a

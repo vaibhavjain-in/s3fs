@@ -340,7 +340,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Allow other modules to change the URL settings.
     module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
     
-    if (!empty($this->config['use_cname'])) {
+    if (empty($this->config['use_cname'])) {
       $expires = NULL;
       if ($url_settings['presigned_url']) {
         $expires = "+{$url_settings['timeout']} seconds";
