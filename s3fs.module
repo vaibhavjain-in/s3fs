@@ -287,7 +287,8 @@ function _s3fs_refresh_cache($config) {
 
   // Create the temp table, into which all the refreshed data will be written.
   // After the full refresh is complete, the temp table will be swapped in.
-  $schema = _s3fs_schema();
+  module_load_install('s3fs');
+  $schema = s3fs_schema();
   try {
     db_create_table('s3fs_file_temp', $schema['s3fs_file']);
     // db_create_table() ignores the 'collation' option. >_<
@@ -561,72 +562,4 @@ function _s3fs_get_config() {
   }
   
   return $config;
-}
-
-/**
- * Defines the s3fs_file table.
- *
- * This function is copy-pasta from s3fs_schema in the install file, because
- * that function isn't available from the code in this file.
- *
- * @return array
- *   A Drupal schema definition array.
- */
-function _s3fs_schema() {
-  $schema = array();
-  $schema['s3fs_file'] = array(
-    'description' => 'Stores metadata about files in the S3 File System.',
-    'fields' => array(
-      'uri' => array(
-        'description' => 'The S3 URI of the file.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-      'filesize' => array(
-        'description' => 'The size of the file in bytes.',
-        'type' => 'int',
-        'size' => 'big',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'timestamp' => array(
-        'description' => 'UNIX timestamp for when the file was added.',
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'dir' => array(
-        'description' => 'Boolean indicating whether or not this object is a directory.',
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'mode' => array(
-        'description' => 'The file mode returned by the stat function.',
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'uid' => array(
-        'description' => 'The S3 uid of the user who is associated with the file.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
-    ),
-    'indexes' => array(
-      'timestamp' => array('timestamp'),
-    ),
-    'primary key' => array('uri'),
-    // As mentioned on https://drupal.org/node/772678, Drupal does not respect
-    // this setting (as of 2013/11/27). So we do it in hook_install().
-    'collation' => 'utf8_bin',
-  );
-  return $schema;
 }

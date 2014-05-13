@@ -122,8 +122,6 @@ function s3fs_uninstall() {
 
 /**
  * Implements hook_schema().
- * I wish this could just call _s3fs_schema(), but the code in the .module file
- * isn't available at uninstall time.
  */
 function s3fs_schema() {
   $schema = array();
