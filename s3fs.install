@@ -170,6 +170,13 @@ function s3fs_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
+      'version' => array(
+        'description' => 'The VersionId of the object.',
+        'type' => 'char',
+        'length' => 32,
+        'not null' => FALSE,
+        'default' => '',
+      ),
     ),
     'indexes' => array(
       'timestamp' => array('timestamp'),
@@ -290,4 +297,19 @@ function s3fs_update_7005() {
       variable_del($name);
     }
   }
+}
+
+/**
+ * Add Version schema change to existing installs
+ */
+function s3fs_update_7006() {
+  $version = array(
+    'description' => 'The VersionId of the object.',
+    'type' => 'char',
+    'length' => 32,
+    'not null' => FALSE,
+    'default' => '',
+  );
+
+  db_add_field('s3fs_file', 'version', $version);
 }

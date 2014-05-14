@@ -106,6 +106,12 @@ function s3fs_settings() {
     '#description'   => t('If serving files from CloudFront, the bucket name can differ from the domain name.'),
     '#default_value' => !empty($config['domain']) ? $config['domain'] : '',
   );
+  $form['s3fs_cache_control_header'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('S3 Object Cache-Control Header'),
+    '#description'   => t('The cache control header to set on all S3 objects for CDNs and browsers, e.g. "public, max-age=300".'),
+    '#default_value' => !empty($config['cache_control_header']) ? $config['cache_control_header'] : '',
+  );
   $form['s3fs_use_https'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Always serve files from S3 via HTTPS'),

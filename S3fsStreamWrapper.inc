@@ -70,6 +70,13 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected $presignedURLs = array();
   
   /**
+   * The header that controls how browsers should cache a file.
+   *
+   * @var string
+   */
+  protected $cacheControlHeader = NULL;
+  
+  /**
    * The constructor sets this to TRUE once it's finished.
    *
    * See the comment on _assert_constructor_called() for why this exists.
@@ -105,6 +112,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $this->torrents = $settings['torrents'];
       $this->presignedURLs = $settings['presignedURLs'];
       $this->saveas = $settings['saveas'];
+      $this->cacheControlHeader = $settings['cache_control_header'];
       $this->constructed = TRUE;
       return;
     }
@@ -194,6 +202,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
+    $this->cacheControlHeader = !empty($this->config['cache_control_header']) ? $this->config['cache_control_header'] : NULL;
+    
     // Save all the work we just did, so that subsequent S3fsStreamWrapper
     // constructions don't have to repeat it.
     $settings['config'] = $this->config;
@@ -201,6 +211,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $settings['torrents'] = $this->torrents;
     $settings['presignedURLs'] = $this->presignedURLs;
     $settings['saveas'] = $this->saveas;
+    $settings['cache_control_header'] = $this->cacheControlHeader;
     
     $this->constructed = TRUE;
     $this->_debug('S3fsStreamWrapper constructed.');
@@ -341,6 +352,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
     
     if (empty($this->config['use_cname'])) {
+      // We're not using a CNAME, so we ask S3 for the URL.
       $expires = NULL;
       if ($url_settings['presigned_url']) {
         $expires = "+{$url_settings['timeout']} seconds";
@@ -361,7 +373,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $url = $this->s3->getObjectUrl($this->config['bucket'], $s3_filename, $expires, $url_settings['api_args']);
     }
     else {
+      // We are using a CNAME, so we need to manually construct the URL.
       $url = "{$this->domain}/$s3_filename";
+    }
+    
+    // If this file is versioned, append the version number as a GET arg to
+    // ensure that browser caches will be bypassed upon version changes.
+    $meta = $this->_read_cache($this->uri);
+    if (!empty($meta['version'])) {
+      $url .= (strpos($url, '?') === FALSE ? '?' : '&') . $meta['version'];
     }
     
     // Torrents can only be created for publicly-accessible files:
@@ -370,8 +390,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if (!$url_settings['forced_saveas'] && !$url_settings['presigned_url']) {
       foreach ($this->torrents as $blob) {
         if (preg_match("^$blob^", $s3_filename)) {
-          // A torrent URL is just a plain URL with "?torrent" on the end.
-          $url .= '?torrent';
+          // You get a torrent URL by adding a "torrent" GET arg.
+          $url .= (strpos($url, '?') === FALSE ? '?' : '&') . 'torrent';
           break;
         }
       }
@@ -663,6 +683,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // will get PermissionDenied errors, and torrent URLs won't work.
     $upload_params['ACL'] = 'public-read';
     $upload_params['ContentType'] = S3fsStreamWrapper::getMimeType($this->uri);
+    // Set the Cache-Control header, if the user specified one.
+    if ($this->cacheControlHeader) {
+      $upload_params['CacheControl'] = $this->cacheControlHeader;
+    }
     
     try {
       $this->s3->putObject($upload_params);
@@ -1372,20 +1396,40 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->_debug("_get_metadata_from_s3($uri) called.", TRUE);
     
     $params = $this->_get_params($uri);
+    
+    // TODO: Get rid of the uid column in the database. It's not used for
+    // anything, and populating it requires us to use listObjects when
+    // headObject alone would be sufficient.
+    // In addition, the node column appears to also be entirely unused.
+    // It may be worth removing that, too.
+    
     // I wish we could call headObject(), rather than listObjects(), but
     // headObject() doesn't return the object's owner ID.
-    $result = $this->s3->listObjects(array(
+    $list_objects_result = $this->s3->listObjects(array(
       'Bucket' => $params['Bucket'],
       'Prefix' => $params['Key'],
       'MaxKeys' => 1,
     ));
     
-    // $result['Contents'][0] is the s3 metadata. If it's unset, there is no
-    // file in S3 matching this URI.
-    if (isset($result['Contents'][0])) {
-      return _s3fs_convert_metadata($uri, $result['Contents'][0]);
+    // $list_objects_result['Contents'][0] is the s3 metadata. If it's unset,
+    // there is no file in S3 matching this URI.
+    if (empty($list_objects_result['Contents'][0])) {
+      return FALSE;
     }
-    return FALSE;
+    
+    $result = $list_objects_result['Contents'][0];
+    // Neither headObject() nor listObjects() returns everything we need, so
+    // to get the version ID of the file, we need to call both.
+    $head_object_result = $this->s3->headObject(array(
+      'Bucket' => $params['Bucket'],
+      'Key'    => $params['Key'],
+    ));
+    
+    if (!empty($head_object_result['VersionId'])) {
+      $result['VersionId'] = $head_object_result['VersionId'];
+    }
+    
+    return _s3fs_convert_metadata($uri, $result);
   }
   
   /**
