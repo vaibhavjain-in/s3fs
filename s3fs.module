@@ -315,21 +315,24 @@ function _s3fs_refresh_cache($config) {
       $folders[rtrim($uri, '/')] = TRUE;
     }
     else {
-      // Only store the metadata for the latest version of the file.
-      if ((!isset($s3_metadata['IsLatest']) || (isset($s3_metadata['IsLatest']) && $s3_metadata['IsLatest']))) {
-        // Files with no StorageClass are actually from the DeleteMarkers list,
-        // rather then the Versions list. They represent a file which has been
-        // deleted, so we don't cache them.
-        if (!isset($s3_metadata['StorageClass'])) {
-          continue;
-        }
-        // Buckets with Versioning disabled set VersionId to "null". If we see
-        // that, unset the VersionId so "null" doesn't get put into the DB.
-        if (isset($s3_metadata['VersionId']) && $s3_metadata['VersionId'] == 'null') {
-          unset($s3_metadata['VersionId']);
-        }
-        $file_metadata_list[] = _s3fs_convert_metadata($uri, $s3_metadata);
+      // Only store the metadata for the latest version of the file. Files
+      // should be excluded only if IsLatest is set to FALSE.
+      if (isset($s3_metadata['IsLatest']) && !$s3_metadata['IsLatest']) {
+        continue;
       }
+      // Files with no StorageClass are actually from the DeleteMarkers list,
+      // rather then the Versions list. They represent a file which has been
+      // deleted, so we don't cache them.
+      if (!isset($s3_metadata['StorageClass'])) {
+        continue;
+      }
+      // Buckets with Versioning disabled set all files' VersionIds to "null".
+      // If we see that, unset VersionId to prevent "null" from being written
+      // to the DB.
+      if (isset($s3_metadata['VersionId']) && $s3_metadata['VersionId'] == 'null') {
+        unset($s3_metadata['VersionId']);
+      }
+      $file_metadata_list[] = _s3fs_convert_metadata($uri, $s3_metadata);
     }
   }
   
