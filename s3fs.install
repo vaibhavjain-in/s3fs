@@ -182,8 +182,9 @@ function s3fs_schema() {
       'timestamp' => array('timestamp'),
     ),
     'primary key' => array('uri'),
-    // As mentioned on https://drupal.org/node/772678, Drupal does not respect
-    // this setting (as of 2013/11/27). So we do it in hook_install().
+    // As mentioned on http://drupal.org/node/2193059, a bug in Drupal core's
+    // MySQL driver prevents this setting from actually being applied. So we
+    // manually fix that in hook_install().
     'collation' => 'utf8_bin',
   );
   return $schema;
@@ -196,10 +197,21 @@ function s3fs_schema() {
  * set the collation manually. This hook is run after the table is created.
  */
 function s3fs_install() {
-  // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
-  // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
-  // 'utf8_bin' collation fulfills our needs.
-  db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+  $options = Database::getConnectionInfo('default');
+  switch ($options['default']['driver']) {
+    case 'pgsql':
+      // Postgres uses binary collation by default
+      break;
+    case 'sqlite':
+      // SQLite uses binary collation by default
+      break;
+    case 'mysql':
+      // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
+      // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
+      // 'utf8_bin' collation fulfills our case-sensitivity requirement.
+      db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+      break;
+  }
 }
 
 /**
@@ -255,10 +267,19 @@ function s3fs_update_7001() {
  * Updates the s3fs_file table to use case sensitive collation.
  */
 function s3fs_update_7002() {
-  // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
-  // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
-  // 'utf8_bin' collation fulfills our needs.
-  db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+  $options = Database::getConnectionInfo('default');
+  switch ($options['default']['driver']) {
+    case 'pgsql':
+      // Postgres uses binary collation by default
+      break;
+    case 'sqlite':
+      // SQLite uses binary collation by default
+      break;
+    case 'mysql':
+      // Set MySQL tables to use case-sensitive collation.
+      db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+      break;
+  }
 }
 
 /**

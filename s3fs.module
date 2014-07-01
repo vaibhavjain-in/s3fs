@@ -292,7 +292,19 @@ function _s3fs_refresh_cache($config) {
   try {
     db_create_table('s3fs_file_temp', $schema['s3fs_file']);
     // Like hook_schema(), db_create_table() ignores the 'collation' setting.
-    db_query("ALTER TABLE {s3fs_file_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+    $options = Database::getConnectionInfo('default');
+    switch ($options['default']['driver']) {
+      case 'pgsql':
+        // Postgres uses binary collation by default
+        break;
+      case 'sqlite':
+        // SQLite uses binary collation by default
+        break;
+      case 'mysql':
+        // Set MySQL tables to use case-sensitive collation.
+        db_query("ALTER TABLE {s3fs_file_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+        break;
+    }
   }
   catch (DatabaseSchemaObjectExistsException $e) {
     // The table already exists, so truncate it.
