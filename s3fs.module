@@ -57,21 +57,29 @@ function s3fs_libraries_info() {
 function s3fs_menu() {
   $items = array();
 
-  $items['admin/config/media/s3fs/settings'] = array(
-    'title' => 'S3 File System Settings',
-    'description' => 'Configure S3 File System settings.',
+  $items['admin/config/media/s3fs'] = array(
+    'title' => 'S3 File System',
+    'description' => 'Configure S3 File System.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('s3fs_settings'),
     'access arguments' => array('administer s3fs'),
     'file' => 's3fs.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/media/s3fs/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
   );
   $items['admin/config/media/s3fs/actions'] = array(
-    'title' => 'S3 File System Actions',
+    'title' => 'Actions',
     'description' => 'Actions for S3 File System.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('s3fs_actions'),
     'access arguments' => array('administer s3fs'),
     'file' => 's3fs.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
   );
   // A custom version of system/files/styles/%image_style, based on how the
   // core Image module creates image styles with image_style_deliver().

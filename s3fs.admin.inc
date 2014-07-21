@@ -32,7 +32,7 @@ function s3fs_settings() {
       You may instead set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file.
       Values set in settings.php will override the values in these fields."),
     '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
+    '#collapsed' => !empty($config['awssdk2_access_key']) || !empty($config['use_instance_profile']),
   );
   
   $form['s3fs_credentials']['s3fs_awssdk2_access_key'] = array(
