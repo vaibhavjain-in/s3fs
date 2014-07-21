@@ -110,9 +110,9 @@ function s3fs_permission() {
  */
 function s3fs_help($path, $arg) {
   $actions = 'admin/config/media/s3fs/actions';
-  $settings = 'admin/config/media/s3fs/settings';
+  $settings = 'admin/config/media/s3fs';
   if ($path == $settings) {
-    $msg = t('To perform actions, visit the !link', array('!link' => l(t('actions page'), $actions)));
+    $msg = t('To perform actions, such as refreshing the metadata cache, visit the !link', array('!link' => l(t('actions page'), $actions)));
     return "<p>$msg</p>";
   }
   elseif ($path == $actions) {
