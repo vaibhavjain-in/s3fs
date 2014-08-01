@@ -54,6 +54,12 @@ file metadata cache. This will copy the filenames and attributes for every
 existing file in your S3 bucket into Drupal's database. This can take a
 significant amount of time for very large buckets (thousands of files).
 
+Please keep in mind that any time the contents of your S3 bucket change without
+Drupal knowing about it (like if you copy some files into it manually using
+another tool), you'll need to refresh the metadata cache again. S3FS assumes
+that its cache is a canonical listing of every file in the bucket. Thus, Drupal
+will not be able to access any files you copied into your bucket manually until
+S3FS's cache learns of them.
 
 =================================================================
 == Tell Your Site to Use s3fs Instead of the Public Filesystem ==
