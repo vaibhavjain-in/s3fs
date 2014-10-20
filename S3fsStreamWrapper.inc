@@ -822,7 +822,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $metadata = $this->_read_cache($from_uri);
       $metadata['uri'] = $to_uri;
       $this->_write_cache($metadata);
-      // Delete the original object.
+      // We need to wait because of S3's "eventual consistency".
+      $wait_params = $this->_get_params($to_uri);
+      $wait_params['waiter.interval'] = 2;
+      $this->s3->waitUntilObjectExists($wait_params);
+      // Now that we know the new object is there, delete the old one.
       return $this->unlink($from_uri);
     }
     catch (\Exception $e) {
