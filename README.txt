@@ -18,23 +18,18 @@ viable under such a configuration.
 ==================
 == Installation ==
 ==================
-Download and install the Libraries module (7.x-2.x) module from
-http://drupal.org/project/libraries, then install AWS SDK for PHP 2.
+1) Install Libraries version 2.x from http://drupal.org/project/libraries.
 
-You can install the SDK in three different ways:
-1) (Recommended) Download and extract this zip to sites/all/libraries/awssdk2:
-  https://github.com/aws/aws-sdk-php/releases/download/2.4.10/aws.zip
-2) Run this drush command from your site's root directory:
-  drush make sites/all/modules/s3fs/s3fs.make --no-core
-3) Clone the following github repo into sites/all/libraries/awssdk2:
-  https://github.com/coredumperror/aws-sdk-for-php2.git
-
-For the SDK to work, you site's filesystem must have a file named
+2) Install the AWS SDK for PHP by going to http://aws.amazon.com/sdk-for-php
+and clicking the orange "AWS SDK for PHP" button. On the page you're sent to,
+click the green "aws.zip" button. Extract that zip file into your Drupal site's
+sites/all/libraries/awssdk2 folder such that the path to aws-autoloader.php is
 sites/all/libraries/awssdk2/aws-autoloader.php
 
-If you keep your site in its own git repo and you used methods 2 or 3, be sure
-to delete the sites/all/libraries/awssdk2/.git folder. Otherwise you may end
-up with strange git submodule behavior.
+In the unlikely circumstance that the version of the SDK you downloaded causes
+errors with S3 File System, you can download this version instead, which is
+known to work:
+https://github.com/aws/aws-sdk-php/releases/download/2.6.3/aws.zip
 
 ====================
 == Initial Setup ==
@@ -46,20 +41,23 @@ $conf['awssdk2_access_key'] = 'YOUR ACCESS KEY';
 $conf['awssdk2_secret_key'] = 'YOUR SECRET KEY';
 
 Configure your setttings for S3 File System (including your S3 bucket name) at
-/admin/config/media/s3fs/settings
+/admin/config/media/s3fs/settings. You can input your AWS credentials on this
+page as well, but using the $conf array is reccomended.
 
 ==================== ESSENTAL STEP! DO NOT SKIP THIS! =========================
 With the settings saved, go to /admin/config/media/s3fs/actions to refresh the
 file metadata cache. This will copy the filenames and attributes for every
 existing file in your S3 bucket into Drupal's database. This can take a
-significant amount of time for very large buckets (thousands of files).
+significant amount of time for very large buckets (thousands of files). If this
+operation times out, you can also perform it using "drush s3fs-refresh-cache".
 
 Please keep in mind that any time the contents of your S3 bucket change without
 Drupal knowing about it (like if you copy some files into it manually using
 another tool), you'll need to refresh the metadata cache again. S3FS assumes
 that its cache is a canonical listing of every file in the bucket. Thus, Drupal
 will not be able to access any files you copied into your bucket manually until
-S3FS's cache learns of them.
+S3FS's cache learns of them. This is true of folders as well; s3fs will not be
+able to copy files into folders that it doesn't know about.
 
 =================================================================
 == Tell Your Site to Use s3fs Instead of the Public Filesystem ==
@@ -73,9 +71,8 @@ Add a field of type File, Image, etc and set the "Upload destination" to
 This will configure your site to store *uploaded* files in S3. Files which your
 site creates automatically (such as aggregated CSS) will still be stored in the
 public filesystem, because Drupal is hard-coded to use public:// for such
-files. A future version of S3 File System *may* add support for storing these
-files in S3, but it's currently uncertain whether Drupal is designed in a way
-that will make this possible.
+files. A future version of S3 File System will add support for storing these
+files in S3, as well, but there is currently no ETA for this feature.
 
 
 ==================
