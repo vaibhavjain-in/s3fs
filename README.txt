@@ -82,6 +82,11 @@ Some curl libraries, such as the one bundled with MAMP, do not come
 with authoritative certificate files. See the following page for details:
 http://dev.soup.io/post/56438473/If-youre-using-MAMP-and-doing-something
 
+Because of a bizzare limitation regarding MySQL's maximum index length for
+InnoDB tables, the maximum uri length that S3FS supports is 250 characters.
+That includes the full path to the file in your bucket, as the full folder
+path is part of the uri.
+
 ======================
 == Acknowledgements ==
 ======================
