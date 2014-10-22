@@ -309,7 +309,7 @@ function _s3fs_refresh_cache($config) {
         // SQLite uses binary collation by default
         break;
       case 'mysql':
-        // Set MySQL tables to use case-sensitive collation.
+        // Set MySQL tables to use binary collation, to approximate case-sensitivity.
         db_query("ALTER TABLE {s3fs_file_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
         break;
     }

@@ -31,6 +31,12 @@ errors with S3 File System, you can download this version instead, which is
 known to work:
 https://github.com/aws/aws-sdk-php/releases/download/2.6.3/aws.zip
 
+IN CASE OF TROUBLE DETECTING THE AWS SDK LIBRARY:
+The Libraries module caches its listing of installed libraries, and this can
+potentially causes problems with detection of ths AWS SDK. If you run into
+such problems, clear your cache from the admin/config/development/performance
+page of your site. That will likely solve the majority of detection issues.
+
 ====================
 == Initial Setup ==
 ====================
