@@ -32,10 +32,10 @@ known to work:
 https://github.com/aws/aws-sdk-php/releases/download/2.6.3/aws.zip
 
 IN CASE OF TROUBLE DETECTING THE AWS SDK LIBRARY:
-The Libraries module caches its listing of installed libraries, and this can
-potentially causes problems with detection of ths AWS SDK. If you run into
-such problems, clear your cache from the admin/config/development/performance
-page of your site. That will likely solve the majority of detection issues.
+Ensure that the awssdk2 folder itself, and all the files within it, can be read
+by your webserver. Usually this means that the user "apache" (or "_www" on OSX)
+must have read permissions for the files, and read+execute permissions for all
+the folders in the path leading to the awssdk2 files.
 
 ====================
 == Initial Setup ==

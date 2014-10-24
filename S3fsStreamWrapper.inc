@@ -1496,50 +1496,48 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
 
 // Guzzle\Http\CachingEntityBody is only defined once the SDK has been loaded,
 // so we need to load it before we can inherit from it.
-if (function_exists('libraries_load')) {
-  $library = libraries_load('awssdk2');
-  if ($library['loaded']) {
+$library = _s3fs_load_awssdk2_library();
+if ($library['loaded']) {
+  /**
+   * A replacement class for CachingEntityBody that serves better for s3fs.
+   *
+   * Any instantiation of this class must be wrapped in a check for its
+   * existence, since it may not be defined under certain circumstances.
+   */
+  class S3fsSeekableCachingEntityBody extends Guzzle\Http\CachingEntityBody {
+    
     /**
-     * A replacement class for CachingEntityBody that serves better for s3fs.
+     * This version of seek() allows seeking past the end of the cache.
      *
-     * Any instantiation of this class must be wrapped in a check for its
-     * existence, since it may not be defined under certain circumstances.
+     * If the caller attempts to seek more than 50 megs into the file,
+     * though, an exception will be thrown, because that would take up too
+     * much memory.
      */
-    class S3fsSeekableCachingEntityBody extends Guzzle\Http\CachingEntityBody {
-      
-      /**
-       * This version of seek() allows seeking past the end of the cache.
-       *
-       * If the caller attempts to seek more than 50 megs into the file,
-       * though, an exception will be thrown, because that would take up too
-       * much memory.
-       */
-      public function seek($offset, $whence = SEEK_SET) {
-        if ($whence == SEEK_SET) {
-          $byte = $offset;
-        }
-        else if ($whence == SEEK_CUR) {
-          $byte = $offset + $this->ftell();
-        }
-        else {
-          throw new RuntimeException(__CLASS__ . ' supports only SEEK_SET and SEEK_CUR seek operations');
-        }
-        
-        if ($byte > 52428800) {
-          throw new RuntimeException(
-            "Seeking more than 50 megabytes into a remote file is not supported, due to memory constraints.
-              If you need to bypass this error, please contact the maintainers of S3 File System."
-          );
-        }
-        
-        // If the caller tries to seek past the end of the currently cached
-        // data, read in enough of the remote stream to let the seek occur.
-        while ($byte > $this->body->getSize() && !$this->isConsumed()) {
-          $this->read(16384);
-        }
-        
-        return $this->body->seek($byte);
+    public function seek($offset, $whence = SEEK_SET) {
+      if ($whence == SEEK_SET) {
+        $byte = $offset;
       }
+      else if ($whence == SEEK_CUR) {
+        $byte = $offset + $this->ftell();
+      }
+      else {
+        throw new RuntimeException(__CLASS__ . ' supports only SEEK_SET and SEEK_CUR seek operations');
+      }
+      
+      if ($byte > 52428800) {
+        throw new RuntimeException(
+          "Seeking more than 50 megabytes into a remote file is not supported, due to memory constraints.
+            If you need to bypass this error, please contact the maintainers of S3 File System."
+        );
+      }
+      
+      // If the caller tries to seek past the end of the currently cached
+      // data, read in enough of the remote stream to let the seek occur.
+      while ($byte > $this->body->getSize() && !$this->isConsumed()) {
+        $this->read(16384);
+      }
+      
+      return $this->body->seek($byte);
     }
   }
 }
