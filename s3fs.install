@@ -74,7 +74,7 @@ function s3fs_requirements($phase) {
   else {
     $requirements['s3fs_awssdk2'] = array(
       'title' => $t('AWS SDK for PHP'),
-      'value' => $t('The S3 File System module requires the AWS SDK for PHP 2.x library.'),
+      'value' => $t('The S3 File System module requires the AWS SDK for PHP v2.x library.'),
       'description' => $t('The Libraries module reported the following error: !error_message<br>
         Please check the installation instructions for S3 File System.', array('!error_message' => filter_xss($library['error message']))
       ),

@@ -10,7 +10,7 @@ viable under such a configuration.
 == Dependencies and Other Requirements ==
 =========================================
 - Libraries API 2.x - https://drupal.org/project/libraries
-- AWS SDK for PHP 2 (library) = http://aws.amazon.com/sdkforphp/
+- AWS SDK for PHP (library) = http://aws.amazon.com/sdk-for-php
 - PHP 5.3.3+ is required. The AWS SDK will not work on earlier versions.
 - Your PHP must be configured with "allow_url_fopen = On" in your php.ini file.
   Otherwise, PHP will be unable to open files that are in your S3 bucket.
@@ -94,7 +94,7 @@ That includes the full path to the file in your bucket, as the full folder
 path is part of the uri.
 
 eAccelerator, a deprecated opcode cache plugin for PHP, is incompatible with
-AWS SDK for PHP 2. eAccelerator will corrupt the configuration settings for
+AWS SDK for PHP. eAccelerator will corrupt the configuration settings for
 the SDK's s3 client object, causing a variety of different exceptions to be
 thrown. If your server uses eAccelerator, it is highly recommended that you
 replace it with a different opcode cache plugin, as development on

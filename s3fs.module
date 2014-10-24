@@ -34,7 +34,7 @@ function s3fs_stream_wrappers() {
 function s3fs_libraries_info() {
   return array(
     'awssdk2' => array(
-      'title' => 'AWS SDK for PHP 2',
+      'title' => 'AWS SDK for PHP',
       'vendor url' => 'http://docs.aws.amazon.com/aws-sdk-php/guide/latest/index.html',
       'download url' => 'https://github.com/aws/aws-sdk-php/releases/download/2.4.10/aws.zip',
       'version arguments' => array(
