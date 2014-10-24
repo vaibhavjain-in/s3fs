@@ -171,17 +171,20 @@ function _s3fs_image_style_deliver() {
 
   // Try to generate the image, unless another thread just did it while we were
   // acquiring the lock.
-  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
-  
-  // TODO: May need to use S3::waitUntilObjectExists() to confirm that the image derivative has actually been created
-  // before we try to redirect to it.
+  $success = file_exists($derivative_uri);
+  if (!$success) {
+    // If we successfully generate the derivative, wait until S3 acknolowedges
+    // its existence. Otherwise, redirecting to it may cause a 403 error.
+    $success = image_style_create_derivative($style, $image_uri, $derivative_uri) &&
+      file_stream_wrapper_get_instance_by_scheme('s3')->waitUntilFileExists($derivative_uri);
+  }
   
   if (!empty($lock_acquired)) {
     lock_release($lock_name);
   }
   
   if ($success) {
-    // Perform a 302 Redirect to the new image derivative.
+    // Perform a 302 Redirect to the new image derivative in S3.
     drupal_goto(file_create_url($derivative_uri));
   }
   else {

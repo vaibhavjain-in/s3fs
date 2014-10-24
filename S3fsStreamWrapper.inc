@@ -1437,6 +1437,30 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
+   * Wait for the specified file to exist in the bucket.
+   *
+   * @param string $uri
+   *   The URI of the file.
+   *
+   * @return bool
+   *   Returns TRUE once the waiting finishes, or FALSE if the file does not
+   *   begin to exist within 10 seconds.
+   */
+  public function waitUntilFileExists($uri) {
+    $wait_params = $this->_get_params($uri);
+    // Retry ten times, once every second.
+    $wait_params['waiter.max_attempts'] = 10;
+    $wait_params['waiter.interval'] = 1;
+    try {
+      $this->s3->waitUntilObjectExists($wait_params);
+    }
+    catch (Aws\Common\Exception\RuntimeException $e) {
+      return FALSE;
+    }
+    return TRUE;
+  }
+  
+  /**
    * Triggers one or more errors.
    *
    * @param string|array $errors
