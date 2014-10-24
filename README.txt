@@ -93,6 +93,13 @@ InnoDB tables, the maximum uri length that S3FS supports is 250 characters.
 That includes the full path to the file in your bucket, as the full folder
 path is part of the uri.
 
+eAccelerator, a deprecated opcode cache plugin for PHP, is incompatible with
+AWS SDK for PHP 2. eAccelerator will corrupt the configuration settings for
+the SDK's s3 client object, causing a variety of different exceptions to be
+thrown. If your server uses eAccelerator, it is highly recommended that you
+replace it with a different opcode cache plugin, as development on
+eAccelerator ended over 2 years ago.
+
 ======================
 == Acknowledgements ==
 ======================
