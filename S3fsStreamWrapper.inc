@@ -305,7 +305,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $s3_filename = $this->_uri_to_s3_filename($this->uri);
     
     // Image styles support:
-    // If an image derivative URL (e.g. styles/thumbnail/blah.jpg) is requested
+    // If an image derivative URL (e.g. styles/thumbnail/blah.jpg) is generated
     // and the file doesn't exist, provide a URL to s3fs's special version of
     // image_style_deliver(), which will create the derivative when that URL
     // gets requested.
