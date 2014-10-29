@@ -348,8 +348,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
+    // Throw a deprecation warning if any modules implement the old hook.
+    // TODO: Remove this in April 2015, six months after the old hook was removed.
+    if (module_implements('s3fs_url_info')) {
+      trigger_error('hook_s3fs_url_info() is deprecated. Please use hook_s3fs_url_settings_alter() instead.', E_USER_DEPRECATED);
+    }
+    
     // Allow other modules to change the URL settings.
-    module_invoke_all('s3fs_url_info', $s3_filename, $url_settings);
+    drupal_alter('s3fs_url_settings', $url_settings, $s3_filename);
     
     if (empty($this->config['use_cname'])) {
       // We're not using a CNAME, so we ask S3 for the URL.
@@ -687,6 +693,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if ($this->cacheControlHeader) {
       $upload_params['CacheControl'] = $this->cacheControlHeader;
     }
+    
+    // Allow other modules to change the upload params.
+    drupal_alter('s3fs_upload_params', $upload_params);
     
     try {
       $this->s3->putObject($upload_params);

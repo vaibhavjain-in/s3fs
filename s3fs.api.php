@@ -19,23 +19,45 @@
  * torrent. In addition, it can be authenticated (time limited), and in that
  * case a save-as can be forced.
  *
- * @param string $local_path
- *   The local filesystem path.
- * @param array $settings
+ * @param array $url_settings
  *   Associative array of URL settings:
  *     - 'torrent': (boolean) Should the file should be sent via BitTorrent?
  *     - 'presigned_url': (boolean) Triggers use of an authenticated URL.
  *     - 'timeout': (int) Time in seconds before a pre-signed URL times out.
  *     - 'api_args': array of additional arguments to the getObject() function:
  *       http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_getObject
+ * @param string $s3_file_path
+ *   The path to the file within your S3 bucket.
  *
  * @return array
  *   The modified array of configuration items.
  */
-function hook_s3fs_url_info($local_path, &$url_settings) {
+function hook_s3fs_url_settings_alter(&$url_settings, $s3_file_path) {
   // An example of what you might want to do with this hook.
-  if ($local_path == 'myfile.jpg') {
+  if ($s3_file_path == 'myfile.jpg') {
     $url_settings['presigned_url'] = TRUE;
     $url_settings['timeout'] = 10;
   }
+}
+
+/**
+ * Alters the S3 file parameters when uploading an object.
+ *
+ * @param array $upload_params
+ *   Associative array of upload settings
+ * @see http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_putObject
+*/
+function hook_s3fs_upload_params_alter(&$upload_params){
+  if (strpos($upload_params['Key'], 'private/') !== FALSE){
+    $upload_params['ACL'] = 'private';
+  }
+}
+
+/**
+ * This is the old version of hook_s3fs_url_settings_alter(). It is now
+ * DEPRECATED. If your code is still invoking this hook, please update to
+ * hook_s3fs_url_settings_alter().
+ */
+function hook_s3fs_url_info($local_path, &$url_settings) {
+  
 }
