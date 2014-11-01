@@ -80,6 +80,41 @@ public filesystem, because Drupal is hard-coded to use public:// for such
 files. A future version of S3 File System will add support for storing these
 files in S3, as well, but there is currently no ETA for this feature.
 
+==========================
+== Aggregated CSS in S3 ==
+==========================
+Because of the way browsers interpret relative URLs used in CSS files, if you
+want your site's aggregated/public CSS to be placed in S3, you'll need to set
+up your webserver as a proxy for those files. S3 File System will present all
+public:// css files with the url prefix /s3fs-css/, so you need to set up your
+server to proxy all URLs with that prefix into your S3 bucket.
+
+For Apache, add this code to the right location* in your server's config:
+
+ProxyRequests Off
+SSLProxyEngine on
+<Proxy *>
+    Order deny,allow
+    Allow from all
+</Proxy>
+ProxyPass /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
+ProxyPassReverse /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
+
+* The "right location" is implementation-dependent. Normally, placing these
+lines at the bottom of your httpd.conf file should be sufficient. However, if
+your site is configured to use SSL, you'll need to put these lines in the
+VirtuaHost settings for both your normal and SSL sites.
+
+The /s3fs-public/ subfolder is where s3fs stores the files from the public://
+filesystem, to avoid name conflicts with files from the s3:// filesystem.
+
+I'm unfamiliar with non-Apache webservers, but if you've set up a Drupal site
+using a different server, I assume you can translate these directives to your
+server's config format.
+
+Also, if you're using the "Enable CNAME" option to store your files in a
+non-Amazon file service, you'll need to change the proxy target to the
+appropriate URL for your service.
 
 ==================
 == Known Issues ==

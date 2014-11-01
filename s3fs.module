@@ -26,8 +26,26 @@ function s3fs_stream_wrappers() {
       'name' => 'S3 File System',
       'class' => 'S3fsStreamWrapper',
       'description' => t('Amazon Simple Storage Service'),
+      'type' => STREAM_WRAPPERS_NORMAL,
     ),
   );
+}
+
+/**
+ * Implements hook_stream_wrappers_alter().
+ *
+ * If configured to do so, s3fs takes control of the public:// stream wrapper.
+ */
+function s3fs_stream_wrappers_alter(&$wrappers) {
+  $config = _s3fs_get_config();
+  if (!empty($config['use_s3_for_public'])) {
+    $wrappers['public'] = array(
+      'name' => t('Public files (S3FS)'),
+      'class' => 'S3fsStreamWrapper',
+      'description' => t('Public files served from Amazon S3.'),
+      'type' => STREAM_WRAPPERS_NORMAL,
+    );
+  }
 }
 
 /**
@@ -92,7 +110,7 @@ function s3fs_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
-
+  
   return $items;
 }
 
@@ -272,6 +290,18 @@ function _s3fs_refresh_cache($config) {
   }
   $s3 = _s3fs_get_amazons3_client($config);
   
+  // TODO: MAJOR PROBLEM WITH PREFIX SYSTEM!!!
+  // IF you use a prefix, the refresh will not retrieve updated information
+  // from S3 about image styles or public files (and possibly others), because
+  // they don't get created in the prefix folder. This hasn't been a problem in
+  // the past with image styles, because of their nature as ephemeral files
+  // created by Drupal. But once public files are being put into the
+  // /s3fs-public/ folder, they will never get updated if a prefix is set.
+  // THE RIGHT WAY to do the prefix system is to instead call it a subfolder,
+  // and do every S3 operation from within that folder, transparently. The
+  // URIs of files won't change, but s3fa will prepend the subfolder to every
+  // S3 key.
+  
   // Set up the iterator that will loop over all the objects in the bucket.
   $file_metadata_list = array();
   $iterator_args = array('Bucket' => $config['bucket']);
@@ -295,7 +325,11 @@ function _s3fs_refresh_cache($config) {
     ->condition('dir', 1, '=');
   // If a prefix is set, only select folders which start with it.
   if (!empty($config['prefix'])) {
-    $existing_folders = $existing_folders->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE');
+    $existing_folders->condition(
+      db_or()
+        ->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE')
+        ->condition('uri', db_like("public://{$config['prefix']}") . '%', 'LIKE')
+    );
   }
   foreach ($existing_folders->execute()->fetchCol(0) as $folder_uri) {
     $folders[$folder_uri] = TRUE;
@@ -375,8 +409,10 @@ function _s3fs_refresh_cache($config) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid', 'version'));
     foreach ($folders as $folder_uri => $ph) {
-      // If it's set, exclude any folders which don't match the prefix.
-      if (!empty($config['prefix']) && strpos($folder_uri, "s3://{$config['prefix']}") === FALSE) {
+      // If a prefix is set, exclude any folders which don't match it.
+      if (!empty($config['prefix']) &&
+          strpos($folder_uri, "s3://{$config['prefix']}") === FALSE &&
+          strpos($folder_uri, "public://{$config['prefix']}") === FALSE) {
         continue;
       }
       $metadata = _s3fs_convert_metadata($folder_uri, array());
@@ -393,7 +429,7 @@ function _s3fs_refresh_cache($config) {
   
   // We're done, so replace data in the real table with data from the temp table.
   if (empty($config['prefix'])) {
-    // If this isn't a partial reresh, we can do a full table swap.
+    // If this isn't a partial refresh, we can do a full table swap.
     db_rename_table('s3fs_file', 's3fs_file_old');
     db_rename_table('s3fs_file_temp', 's3fs_file');
     db_drop_table('s3fs_file_old');
@@ -409,7 +445,11 @@ function _s3fs_refresh_cache($config) {
       
       // Delete from s3fs_file only those rows which match the prefix.
       $delete_query = db_delete('s3fs_file')
-        ->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE')
+        ->condition(
+          db_or()
+            ->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE')
+            ->condition('uri', db_like("public://{$config['prefix']}") . '%', 'LIKE')
+        )
         ->execute();
       
       // Copy the contents of s3fs_file_temp (which all have the prefix) into
@@ -433,7 +473,7 @@ function _s3fs_refresh_cache($config) {
     drupal_set_message(t('S3 File System cache refreshed.'));
   }
   else {
-    drupal_set_message(t('Files in the S3 File System cache with prefix %prefix have been refreshed.', array('%prefix' => $config['prefix'])));
+    drupal_set_message(t('Files in the S3 File System cache with prefix "%prefix" have been refreshed.', array('%prefix' => $config['prefix'])));
   }
 }
 
@@ -451,22 +491,32 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
   if ($file_metadata_list) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid', 'version'));
-
+    
     foreach ($file_metadata_list as $metadata) {
+      // If the uri starts with s3://s3fs-public, that means it's from the
+      // public:// filesystem. So its uri needs some munging.
+      if (strpos($metadata['uri'], 's3://s3fs-public') === 0) {
+        if ($metadata['uri'] == 's3://s3fs-public') {
+          // Skip the /s3fs-public folder itself, since it's not "real".
+          continue;
+        }
+        $metadata['uri'] = str_replace('s3://s3fs-public/', 'public://', $metadata['uri']);
+      }
+      
       // Write the file metadata to the DB.
       $insert_query->values($metadata);
-
+      
       // Add the ancestor folders of this file to the $folders array.
-      $uri = dirname($metadata['uri']);
-      // Loop through each ancestor folder until we get to 's3://'.
-      while (strlen($uri) > 5) {
+      $uri = drupal_dirname($metadata['uri']);
+      // Loop through each ancestor folder until we get to the root folder.
+      while ($uri != 's3://' && $uri != 'public://') {
         $folders[$uri] = TRUE;
-        $uri = dirname($uri);
+        $uri = drupal_dirname($uri);
       }
     }
     $insert_query->execute();
   }
-
+  
   // Empty out the file array, so it can be re-filled by the next request.
   $file_metadata_list = array();
 }
@@ -475,14 +525,14 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
  * Convert file metadata returned from S3 into a metadata cache array.
  *
  * @param string $uri
- *   A string containing the uri of the resource to check.
+ *   The uri of the resource.
  * @param array $s3_metadata
  *   An array containing the collective metadata for the object in S3.
  *   The caller may send an empty array here to indicate that the returned
  *   metadata should represent a directory.
  *
  * @return array
- *   An array containing metadata formatted for the file metadata cache.
+ *   A file metadata cache array.
  */
 function _s3fs_convert_metadata($uri, $s3_metadata) {
   // Need to fill in a default value for everything, so that DB calls

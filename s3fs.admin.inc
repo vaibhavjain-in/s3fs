@@ -165,6 +165,20 @@ function s3fs_settings() {
     ),
     '#default_value' => !empty($config['ignore_cache']) ? $config['ignore_cache'] : FALSE,
   );
+  $form['s3fs_use_s3_for_public'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Use S3 for public:// files'),
+    '#description'   => t(
+      'Enable this option to store all files which would be uploaded to or created in the public://
+      filesystem in your S3 bucket instead.<br><br>
+      <b>PLEASE NOTE:</b> If you intend to use Drupal\'s "Aggregate and compress CSS files" performance
+      option, or will be using any other system that writes CSS files into your site\'s public:// file
+      system, you <b>must</b> perform some additional configuration on your webserver to make those css
+      files work right when stored in S3. Please see the section titled "Aggregated CSS in S3" in the
+      !README for details.', array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
+    ),
+    '#default_value' => !empty($config['use_s3_for_public']) ? $config['use_s3_for_public'] : FALSE,
+  );
   $form['s3fs_prefix'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Partial Refresh Prefix'),
@@ -262,6 +276,10 @@ function _s3fs_convert_form_state_to_config($form_state) {
  */
 function s3fs_actions() {
   $form = array();
+  
+  // Drupal's menu system doesn't let you set the page title for tabs.
+  // So we set it here.
+  drupal_set_title('S3 File System Actions');
   
   $form['s3fs_refresh_cache'] = array(
     '#type' => 'fieldset',
