@@ -232,7 +232,6 @@ function s3fs_settings() {
   // Once the system settings form has been fully set up, add our additional
   // submit callback.
   $form = system_settings_form($form);
-  $form['#submit'][] = '_s3fs_amazons3_api_compatibility_submit';
   return $form;
 }
 
@@ -244,17 +243,6 @@ function s3fs_settings_validate($form, &$form_state) {
   $values = _s3fs_convert_form_state_to_config($form_state);
   $config = array_merge($config, $values);
   _s3fs_validate_config($config);
-}
-
-/**
- * Supplemental submit callback for the "Save" button on the admin form.
- *
- * Copies all s3fs_* variables to variables with amazons3_* names,
- * in order to preserve API compatibility with AmazonS3.
- * AmazonS3 can be found here: https://drupal.org/project/amazons3
- */
-function _s3fs_amazons3_api_compatibility_submit($form, &$form_state) {
-  variable_set('amazons3_bucket', variable_get('s3fs_bucket'));
 }
 
 /**
