@@ -126,7 +126,7 @@ function s3fs_uninstall() {
 function s3fs_schema() {
   $schema = array();
   $schema['s3fs_file'] = array(
-    'description' => 'Stores metadata about files in the S3 File System.',
+    'description' => 'Stores metadata about files in S3.',
     'fields' => array(
       'uri' => array(
         'description' => 'The S3 URI of the file.',
@@ -156,23 +156,9 @@ function s3fs_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
-      'mode' => array(
-        'description' => 'The file mode returned by the stat function.',
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-      ),
-      'uid' => array(
-        'description' => 'The S3 uid of the user who is associated with the file.',
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-      ),
       'version' => array(
-        'description' => 'The VersionId of the object.',
-        'type' => 'char',
+        'description' => 'The S3 VersionId of the object.',
+        'type' => 'varchar',
         'length' => 32,
         'not null' => FALSE,
         'default' => '',
@@ -321,16 +307,36 @@ function s3fs_update_7005() {
 }
 
 /**
- * Add Version schema change to existing installs
+ * Add Version schema change to existing installs.
  */
 function s3fs_update_7006() {
   $version = array(
-    'description' => 'The VersionId of the object.',
-    'type' => 'char',
+    'description' => 'The S3 VersionId of the object.',
+    'type' => 'varchar',
     'length' => 32,
     'not null' => FALSE,
     'default' => '',
   );
 
   db_add_field('s3fs_file', 'version', $version);
+}
+
+/**
+ * Updates to the s3fs_file table.
+ */
+function s3fs_update_7200() {
+  // These two fields are no longer used as of 7.x-2.0.
+  db_drop_field('s3fs_file', 'uid');
+  db_drop_field('s3fs_file', 'mode');
+  
+  // Changed the version field to a varchar, to save space for objects that
+  // don't have a VersionID.
+  $spec = array(
+    'description' => 'The S3 VersionId of the object.',
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => FALSE,
+    'default' => '',
+  );
+  db_change_field('s3fs_file', 'version', 'version', $spec);
 }

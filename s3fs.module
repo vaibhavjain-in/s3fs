@@ -407,7 +407,7 @@ function _s3fs_refresh_cache($config) {
   // write those folders to the temp table.
   if ($folders) {
     $insert_query = db_insert('s3fs_file_temp')
-      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid', 'version'));
+      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
     foreach ($folders as $folder_uri => $ph) {
       // If a prefix is set, exclude any folders which don't match it.
       if (!empty($config['prefix']) &&
@@ -441,7 +441,7 @@ function _s3fs_refresh_cache($config) {
     $transaction = db_transaction();
     try {
       $rows_to_copy = db_select('s3fs_file_temp', 's')
-        ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid', 'version'));
+        ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'version'));
       
       // Delete from s3fs_file only those rows which match the prefix.
       $delete_query = db_delete('s3fs_file')
@@ -490,7 +490,7 @@ function _s3fs_refresh_cache($config) {
 function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
   if ($file_metadata_list) {
     $insert_query = db_insert('s3fs_file_temp')
-      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'mode', 'uid', 'version'));
+      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
     
     foreach ($file_metadata_list as $metadata) {
       // If the uri starts with s3://s3fs-public, that means it's from the
@@ -542,36 +542,31 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
     'filesize' => 0,
     'timestamp' => time(),
     'dir' => 0,
-    // The S_IFREG posix flag, indicating a regular file.
-    'mode' => 0100000,
-    'uid' => '',
     'version' => '',
   );
 
   if (empty($s3_metadata)) {
     // The caller wants directory metadata.
     $metadata['dir'] = 1;
-    $metadata['uid'] = 'S3 File System';
-    // The posix S_IFDIR flag, indicating a directory.
-    $metadata['mode'] = 0040000;
   }
   else {
-    // $s3_metadata describes an actual file.
-    if (isset($s3_metadata['Size'])) {
+    // The filesize value can come from either the Size or ContentLength
+    // attribute, depending on which AWS API call built $s3_metadata.
+    if (isset($s3_metadata['ContentLength'])) {
+      $metadata['filesize'] = $s3_metadata['ContentLength'];
+    }
+    else if (isset($s3_metadata['Size'])) {
       $metadata['filesize'] = $s3_metadata['Size'];
     }
+    
     if (isset($s3_metadata['LastModified'])) {
       $metadata['timestamp'] = date('U', strtotime($s3_metadata['LastModified']));
     }
-    if (isset($s3_metadata['Owner']['ID'])) {
-      $metadata['uid'] = $s3_metadata['Owner']['ID'];
-    }
+    
     if (isset($s3_metadata['VersionId'])) {
       $metadata['version'] = $s3_metadata['VersionId'];
     }
   }
-  // Everything is writeable.
-  $metadata['mode'] |= 0777;
   return $metadata;
 }
 

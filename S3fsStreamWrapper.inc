@@ -266,7 +266,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
-    // No mime types matches, so return the default.
+    // No mime type matches, so return the default.
     return 'application/octet-stream';
   }
   
@@ -572,7 +572,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     $this->uri = $uri;
     // We don't care about the binary flag, so strip it out.
-    $this->mode = $mode = rtrim($mode, 'bt');
+    $this->access_mode = $mode = rtrim($mode, 'bt');
     $this->params = $this->_get_params($uri);
     $errors = array();
     
@@ -713,7 +713,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_flush() {
     $this->_debug("stream_flush() called for {$this->uri}.");
     
-    if ($this->mode == 'r') {
+    if ($this->access_mode == 'r') {
       return FALSE;
     }
     
@@ -778,7 +778,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     $stat = fstat($this->body->getStream());
     // Add the size of the underlying stream if it is known.
-    if ($this->mode == 'r' && $this->body->getSize()) {
+    if ($this->access_mode == 'r' && $this->body->getSize()) {
       $stat[7] = $stat['size'] = $this->body->getSize();
     }
     
@@ -942,8 +942,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       return FALSE;
     }
     
-    // We need a version $uri with no / because folders are cached with no /.
-    // We alos need one with the /, because it might be a file in S3 that
+    // We need a version of $uri with no / because folders are cached with no /.
+    // We also need one with the /, because it might be a file in S3 that
     // ends with /. In addition, we must differentiate against files with this
     // folder's name as a substring.
     // e.g. rmdir('s3://foo/bar') should ignore s3://foo/barbell.jpg.
@@ -1116,7 +1116,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $stat = array();
       $stat[0]  = $stat['dev'] = 0;
       $stat[1]  = $stat['ino'] = 0;
-      $stat[2]  = $stat['mode'] = $metadata['mode'];
+      // Use the S_IFDIR posix flag for directories, S_IFREG for files.
+      // All files are considered writable, so OR in 0777.
+      $stat[2]  = $stat['mode'] = ($metadata['dir'] ? 0040000 : 0100000) | 0777;
       $stat[3]  = $stat['nlink'] = 0;
       $stat[4]  = $stat['uid'] = 0;
       $stat[5]  = $stat['gid'] = 0;
@@ -1129,7 +1131,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $stat[12] = $stat['blocks'] = 0;
       
       if (!$metadata['dir']) {
-        $stat[4]  = $stat['uid'] = $metadata['uid'];
+        $stat[4]  = $stat['uid'] = 's3fs';
         $stat[7]  = $stat['size'] = $metadata['filesize'];
         $stat[8]  = $stat['atime'] = $metadata['timestamp'];
         $stat[9]  = $stat['mtime'] = $metadata['timestamp'];
@@ -1233,8 +1235,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    *     'filesize' => The size of the file, in bytes.
    *     'timestamp' => The file's create/update timestamp.
    *     'dir' => A boolean indicating whether the object is a directory.
-   *     'mode' => The octal mode of the file.
-   *     'uid' => The uid of the owner of the S3 object.
    *
    * @throws
    *   Exceptions which occur in the database call will percolate.
@@ -1330,9 +1330,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     unset($params['throw_exceptions']);
     
     $params['Bucket'] = $this->config['bucket'];
-    // Strip the scheme from the URI to get the S3 Key.
     $params['Key'] = file_uri_target($uri);
-    // If it's a public:// file, prepend the s3fs-public/ folder.
+    // public:// file are all placed under the s3fs-public/ folder.
     if (file_uri_scheme($uri) == 'public') {
       $params['Key'] = "s3fs-public/{$params['Key']}";
     }
@@ -1436,37 +1435,13 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->_debug("_get_metadata_from_s3($uri) called.", TRUE);
     
     $params = $this->_get_params($uri);
-    
-    // TODO: Get rid of the uid column in the database. It's not used for
-    // anything, and populating it requires us to use listObjects when
-    // headObject alone would be sufficient.
-    // In addition, the node column appears to also be entirely unused.
-    // It may be worth removing that, too.
-    
-    // I wish we could call headObject(), rather than listObjects(), but
-    // headObject() doesn't return the object's owner ID.
-    $list_objects_result = $this->s3->listObjects(array(
-      'Bucket' => $params['Bucket'],
-      'Prefix' => $params['Key'],
-      'MaxKeys' => 1,
-    ));
-    
-    // $list_objects_result['Contents'][0] is the s3 metadata. If it's unset,
-    // there is no file in S3 matching this URI.
-    if (empty($list_objects_result['Contents'][0])) {
-      return FALSE;
+    try {
+      $result = $this->s3->headObject($params);
     }
-    
-    $result = $list_objects_result['Contents'][0];
-    // Neither headObject() nor listObjects() returns everything we need, so
-    // to get the version ID of the file, we need to call both.
-    $head_object_result = $this->s3->headObject(array(
-      'Bucket' => $params['Bucket'],
-      'Key'    => $params['Key'],
-    ));
-    
-    if (!empty($head_object_result['VersionId'])) {
-      $result['VersionId'] = $head_object_result['VersionId'];
+    catch (Aws\S3\Exception\NoSuchKeyException $e) {
+      // headObject() throws this exception if the requested key doesn't exist
+      // in the bucket.
+      return FALSE;
     }
     
     return _s3fs_convert_metadata($uri, $result);
