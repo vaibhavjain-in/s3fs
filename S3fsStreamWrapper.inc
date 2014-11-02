@@ -309,14 +309,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function getExternalUrl() {
     $this->_debug("getExternalUri() called for {$this->uri}.");
     
-    $filepath = file_uri_target($this->uri);
+    $s3_key = file_uri_target($this->uri);
     
     // If this is a public:// file, check if it exists locally. If it does,
     // serve the local URL. This is needed so that we can serve files which
     // were created on the public:// filesystem before s3fs took over.
     if (file_uri_scheme($this->uri) == 'public') {
       // Convert backslashes from windows filenames to forward slashes.
-      $path = str_replace('\\', '/', $filepath);
+      $path = str_replace('\\', '/', $s3_key);
       $file_public_path = variable_get('file_public_path', conf_path() . '/files');
       if (file_exists(realpath("$file_public_path/$path"))) {
         return "{$GLOBALS['base_url']}/$file_public_path/" . drupal_encode_path($path);
@@ -329,7 +329,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
       else {
         // public:// files are stored in S3 inside the s3fs-public/ folder.
-        $filepath = "s3fs-public/$filepath";
+        $s3_key = "s3fs-public/$s3_key";
       }
     }
     
@@ -338,7 +338,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // and the file doesn't exist, provide a URL to s3fs's special version of
     // image_style_deliver(), which will create the derivative when that URL
     // gets requested.
-    $path_parts = explode('/', $filepath);
+    $path_parts = explode('/', $s3_key);
     if ($path_parts[0] == 'styles' || ($path_parts[0] == 's3fs-public' && $path_parts[1] == 'styles')) {
       if (!$this->_s3fs_get_object($this->uri)) {
         // Remove the s3fs-public folder, since we don't need it in the image
@@ -354,6 +354,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
+    // If a root folder has been set, prepend it to the $s3_key at this time.
+    if (!empty($this->config['root_folder'])) {
+      $s3_key = "{$this->config['root_folder']}/$s3_key";
+    }
+    
     // Set up the URL settings from the Settings page.
     $url_settings = array(
       'torrent' => FALSE,
@@ -366,7 +371,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Presigned URLs.
     foreach ($this->presignedURLs as $blob => $timeout) {
       // ^ is used as the delimeter because it's an illegal character in URLs.
-      if (preg_match("^$blob^", $filepath)) {
+      if (preg_match("^$blob^", $s3_key)) {
         $url_settings['presigned_url'] = TRUE;
         $url_settings['timeout'] = $timeout;
         break;
@@ -374,8 +379,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     // Forced Save As.
     foreach ($this->saveas as $blob) {
-      if (preg_match("^$blob^", $filepath)) {
-        $filename = basename($filepath);
+      if (preg_match("^$blob^", $s3_key)) {
+        $filename = basename($s3_key);
         $url_settings['api_args']['ResponseContentDisposition'] = "attachment; filename=\"$filename\"";
         $url_settings['forced_saveas'] = TRUE;
         break;
@@ -389,7 +394,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     
     // Allow other modules to change the URL settings.
-    drupal_alter('s3fs_url_settings', $url_settings, $filepath);
+    drupal_alter('s3fs_url_settings', $url_settings, $s3_key);
     
     if (empty($this->config['use_cname'])) {
       // We're not using a CNAME, so we ask S3 for the URL.
@@ -410,11 +415,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
           }
         }
       }
-      $url = $this->s3->getObjectUrl($this->config['bucket'], $filepath, $expires, $url_settings['api_args']);
+      $url = $this->s3->getObjectUrl($this->config['bucket'], $s3_key, $expires, $url_settings['api_args']);
     }
     else {
       // We are using a CNAME, so we need to manually construct the URL.
-      $url = "{$this->domain}/$filepath";
+      $url = "{$this->domain}/$s3_key";
     }
     
     // If this file is versioned, append the version number as a GET arg to
@@ -429,7 +434,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // So Forced SaveAs and Presigned URLs cannot be served as torrents.
     if (!$url_settings['forced_saveas'] && !$url_settings['presigned_url']) {
       foreach ($this->torrents as $blob) {
-        if (preg_match("^$blob^", $filepath)) {
+        if (preg_match("^$blob^", $s3_key)) {
           // You get a torrent URL by adding a "torrent" GET arg.
           $url .= (strpos($url, '?') === FALSE ? '?' : '&') . 'torrent';
           break;
@@ -591,7 +596,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       if ($mode == 'r') {
         $this->_open_read_stream($this->params, $errors);
       }
-      elseif ($mode == 'a') {
+      else if ($mode == 'a') {
         $this->_open_append_stream($this->params, $errors);
       }
       else {
@@ -1331,9 +1336,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     $params['Bucket'] = $this->config['bucket'];
     $params['Key'] = file_uri_target($uri);
+    
     // public:// file are all placed under the s3fs-public/ folder.
     if (file_uri_scheme($uri) == 'public') {
       $params['Key'] = "s3fs-public/{$params['Key']}";
+    }
+    // If it's set, all files are placed under the root folder.
+    if (!empty($this->config['root_folder'])) {
+      $params['Key'] = "{$this->config['root_folder']}/{$params['Key']}";
     }
     
     return $params;

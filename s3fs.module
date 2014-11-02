@@ -40,7 +40,7 @@ function s3fs_stream_wrappers_alter(&$wrappers) {
   $config = _s3fs_get_config();
   if (!empty($config['use_s3_for_public'])) {
     $wrappers['public'] = array(
-      'name' => t('Public files (S3FS)'),
+      'name' => t('Public files (s3fs)'),
       'class' => 'S3fsStreamWrapper',
       'description' => t('Public files served from Amazon S3.'),
       'type' => STREAM_WRAPPERS_NORMAL,
@@ -56,7 +56,7 @@ function s3fs_libraries_info() {
     'awssdk2' => array(
       'title' => 'AWS SDK for PHP',
       'vendor url' => 'http://docs.aws.amazon.com/aws-sdk-php/guide/latest/index.html',
-      'download url' => 'https://github.com/aws/aws-sdk-php/releases/download/2.4.10/aws.zip',
+      'download url' => 'https://github.com/aws/aws-sdk-php/releases',
       'version arguments' => array(
         'file' => 'Aws/Common/Aws.php',
         'pattern' => "/const VERSION = '(.*)';/",
@@ -135,7 +135,7 @@ function s3fs_help($path, $arg) {
     $msg = t('To perform actions, such as refreshing the metadata cache, visit the !link.', array('!link' => l(t('actions page'), $actions)));
     return "<p>$msg</p>";
   }
-  elseif ($path == $actions) {
+  else if ($path == $actions) {
     $msg = t('These are the actions that you can perform upon S3 File System.');
     $msg .= '<br>' . t('To change your settings, visit the !link.', array('!link' => l(t('settings page'), $settings)));
     return "<p>$msg</p>";
@@ -176,7 +176,7 @@ function _s3fs_image_style_deliver() {
   
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
-  $lock_name = '_s3fs_image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
+  $lock_name = "_s3fs_image_style_deliver:{$style['name']}:" . drupal_hash_base64($image_uri);
   if (!file_exists($derivative_uri)) {
     $lock_acquired = lock_acquire($lock_name);
     if (!$lock_acquired) {
@@ -243,7 +243,7 @@ function _s3fs_validate_config($config) {
   try {
     // listObjects() will trigger descriptive exceptions if the credentials,
     // bucket name, or region are invalid/mismatched.
-    $s3->listObjects(array('Bucket' => $config['bucket']));
+    $s3->listObjects(array('Bucket' => $config['bucket'], 'MaxKeys' => 1));
   }
   catch (Aws\S3\Exception\InvalidAccessKeyIdException $e) {
     form_set_error('', t('The Access Key in your AWS credentials is invalid.'));
@@ -273,10 +273,11 @@ function _s3fs_validate_config($config) {
 /**
  * Refreshes the metadata cache.
  *
- * Iterates over the full list of objects in the S3 bucket (or only a subset,
- * if the 'prefix' option is set), storing their metadata in the database.
+ * Iterates over the full list of objects in the s3fs_root_folder within S3
+ * bucket (or the entire bucket, if no root folder has been set), caching
+ * their metadata in the database.
  *
- * It then creates the ancestor folders for those files, since folders are not
+ * It then caches the ancestor folders for those files, since folders are not
  * normally stored as actual objects in S3.
  *
  * @param array $config
@@ -290,53 +291,36 @@ function _s3fs_refresh_cache($config) {
   }
   $s3 = _s3fs_get_amazons3_client($config);
   
-  // TODO: MAJOR PROBLEM WITH PREFIX SYSTEM!!!
-  // IF you use a prefix, the refresh will not retrieve updated information
-  // from S3 about image styles or public files (and possibly others), because
-  // they don't get created in the prefix folder. This hasn't been a problem in
-  // the past with image styles, because of their nature as ephemeral files
-  // created by Drupal. But once public files are being put into the
-  // /s3fs-public/ folder, they will never get updated if a prefix is set.
-  // THE RIGHT WAY to do the prefix system is to instead call it a subfolder,
-  // and do every S3 operation from within that folder, transparently. The
-  // URIs of files won't change, but s3fa will prepend the subfolder to every
-  // S3 key.
-  
   // Set up the iterator that will loop over all the objects in the bucket.
   $file_metadata_list = array();
   $iterator_args = array('Bucket' => $config['bucket']);
-  if (!empty($config['prefix'])) {
-    // If the 'prefix' option has been set, retrieve from S3 only those files
-    // whose keys begin with the prefix.
-    $iterator_args['Prefix'] = $config['prefix'];
+  if (!empty($config['root_folder'])) {
+    // If the root_folder option has been set, retrieve from S3 only those files
+    // which reside in the root folder.
+    $iterator_args['Prefix'] = "{$config['root_folder']}/";
   }
   $iterator = $s3->getListObjectVersionsIterator($iterator_args);
-  // NOTE TO SELF: Changing the page size doesn't actually change how many
-  // objects are pulled from S3 at a time. This line is here only as a
-  // reminder that 1000 objects will be loaded at a time.
+  // NOTE: Setting the maximum page size lower than 1000 will have no effect,
+  // as stated by the API docs.
   $iterator->setPageSize(1000);
   
-  // The $folders array is an associative array keyed by folder names, which
+  // The $folders array is an associative array keyed by folder paths, which
   // is constructed as each filename is written to the DB. After all the files
-  // are written, the folder names are converted to metadata and written.
+  // are written, the folder paths are converted to metadata and written.
   $folders = array();
+  // Start by gathering all the existing folders. If we didn't do this, empty
+  // folders would be lost, because they'd have no files from which to rebuild
+  // themselves.
   $existing_folders = db_select('s3fs_file', 's')
     ->fields('s', array('uri'))
     ->condition('dir', 1, '=');
-  // If a prefix is set, only select folders which start with it.
-  if (!empty($config['prefix'])) {
-    $existing_folders->condition(
-      db_or()
-        ->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE')
-        ->condition('uri', db_like("public://{$config['prefix']}") . '%', 'LIKE')
-    );
-  }
   foreach ($existing_folders->execute()->fetchCol(0) as $folder_uri) {
     $folders[$folder_uri] = TRUE;
   }
   
   // Create the temp table, into which all the refreshed data will be written.
-  // After the full refresh is complete, the temp table will be swapped in.
+  // After the full refresh is complete, the temp table will be swapped with
+  // the real one.
   module_load_install('s3fs');
   $schema = s3fs_schema();
   try {
@@ -345,19 +329,19 @@ function _s3fs_refresh_cache($config) {
     $options = Database::getConnectionInfo('default');
     switch ($options['default']['driver']) {
       case 'pgsql':
-        // Postgres uses binary collation by default
+        // Postgres uses binary collation by default.
         break;
       case 'sqlite':
-        // SQLite uses binary collation by default
+        // SQLite uses binary collation by default.
         break;
       case 'mysql':
-        // Set MySQL tables to use binary collation, to approximate case-sensitivity.
-        db_query("ALTER TABLE {s3fs_file_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+        // Use binary collation to approximate case-sensitivity.
+        db_query('ALTER TABLE {s3fs_file_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin');
         break;
     }
   }
   catch (DatabaseSchemaObjectExistsException $e) {
-    // The table already exists, so truncate it.
+    // The table already exists, so we can simply truncate it to start fresh.
     db_truncate('s3fs_file_temp')->execute();
   }
   
@@ -369,22 +353,37 @@ function _s3fs_refresh_cache($config) {
   });
   
   foreach ($iterator as $s3_metadata) {
-    $uri = "s3://{$s3_metadata['Key']}";
+    $key = $s3_metadata['Key'];
+    // The root folder is an impementation detail that only appears on S3.
+    // Files' URIs are not aware of it, so we need to remove it beforehand.
+    if (!empty($config['root_folder'])) {
+      $key = str_replace("{$config['root_folder']}/", '', $key);
+    }
+    
+    // If $key starts with s3fs-public/, it's a public:// file.
+    if (strpos($key, 's3fs-public/') === 0) {
+      // Much like the root folder, s3fs-public/ must be removed from URIs.
+      $key = str_replace('s3fs-public/', '', $key);
+      $uri = "public://$key";
+    }
+    else {
+      // No special prefix means it's an s3:// file.
+      $uri = "s3://$key";
+    }
     
     if ($uri[strlen($uri) - 1] == '/') {
       // Treat objects in S3 whose filenames end in a '/' as folders.
-      // But we don't store the '/' itself as part of the folder's metadata.
+      // But don't store the '/' itself as part of the folder's uri.
       $folders[rtrim($uri, '/')] = TRUE;
     }
     else {
-      // Only store the metadata for the latest version of the file. Files
-      // should be excluded only if IsLatest is set to FALSE.
+      // Only store the metadata for the latest version of the file.
       if (isset($s3_metadata['IsLatest']) && !$s3_metadata['IsLatest']) {
         continue;
       }
       // Files with no StorageClass are actually from the DeleteMarkers list,
       // rather then the Versions list. They represent a file which has been
-      // deleted, so we don't cache them.
+      // deleted, so don't cache them.
       if (!isset($s3_metadata['StorageClass'])) {
         continue;
       }
@@ -398,23 +397,17 @@ function _s3fs_refresh_cache($config) {
     }
   }
   
-  // Push the last page of metadata to the DB. The event listener doesn't fire
-  // after the last page is done, so we have to do it manually.
+  // The event listener doesn't fire after the last page is done, so we have
+  // to write the last page of metadata manually.
   _s3fs_write_metadata($file_metadata_list, $folders);
   
   // Now that the $folders array contains all the ancestors of every file in
   // the cache, as well as the existing folders from before the refresh,
-  // write those folders to the temp table.
+  // write those folders to the DB.
   if ($folders) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
     foreach ($folders as $folder_uri => $ph) {
-      // If a prefix is set, exclude any folders which don't match it.
-      if (!empty($config['prefix']) &&
-          strpos($folder_uri, "s3://{$config['prefix']}") === FALSE &&
-          strpos($folder_uri, "public://{$config['prefix']}") === FALSE) {
-        continue;
-      }
       $metadata = _s3fs_convert_metadata($folder_uri, array());
       $insert_query->values($metadata);
     }
@@ -427,54 +420,12 @@ function _s3fs_refresh_cache($config) {
     $insert_query->execute();
   }
   
-  // We're done, so replace data in the real table with data from the temp table.
-  if (empty($config['prefix'])) {
-    // If this isn't a partial refresh, we can do a full table swap.
-    db_rename_table('s3fs_file', 's3fs_file_old');
-    db_rename_table('s3fs_file_temp', 's3fs_file');
-    db_drop_table('s3fs_file_old');
-  }
-  else {
-    // This is a partial refresh, so we can't just replace the s3fs_file table.
-    // We wrap the whole thing in a transacation so that we can return the
-    // database to its original state in case anything goes wrong.
-    $transaction = db_transaction();
-    try {
-      $rows_to_copy = db_select('s3fs_file_temp', 's')
-        ->fields('s', array('uri', 'filesize', 'timestamp', 'dir', 'version'));
-      
-      // Delete from s3fs_file only those rows which match the prefix.
-      $delete_query = db_delete('s3fs_file')
-        ->condition(
-          db_or()
-            ->condition('uri', db_like("s3://{$config['prefix']}") . '%', 'LIKE')
-            ->condition('uri', db_like("public://{$config['prefix']}") . '%', 'LIKE')
-        )
-        ->execute();
-      
-      // Copy the contents of s3fs_file_temp (which all have the prefix) into
-      // s3fs_file (which was just cleared of all contents with the prefix).
-      db_insert('s3fs_file')
-        ->from($rows_to_copy)
-        ->execute();
-      db_drop_table('s3fs_file_temp');
-    }
-    catch (Exception $e) {
-      $transaction->rollback();
-      watchdog_exception('S3 File System', $e);
-      drupal_set_message(t('S3 File System cache refresh failed. Please see log messages for details.'), 'error');
-      return;
-    }
-    // Destroying the transaction variable is the only way to explicitly commit.
-    unset($transaction);
-  }
+  // Swap the temp table with the real table.
+  db_rename_table('s3fs_file', 's3fs_file_old');
+  db_rename_table('s3fs_file_temp', 's3fs_file');
+  db_drop_table('s3fs_file_old');
   
-  if (empty($config['prefix'])) {
-    drupal_set_message(t('S3 File System cache refreshed.'));
-  }
-  else {
-    drupal_set_message(t('Files in the S3 File System cache with prefix "%prefix" have been refreshed.', array('%prefix' => $config['prefix'])));
-  }
+  drupal_set_message(t('S3 File System cache refreshed.'));
 }
 
 /**
@@ -493,22 +444,12 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
     
     foreach ($file_metadata_list as $metadata) {
-      // If the uri starts with s3://s3fs-public, that means it's from the
-      // public:// filesystem. So its uri needs some munging.
-      if (strpos($metadata['uri'], 's3://s3fs-public') === 0) {
-        if ($metadata['uri'] == 's3://s3fs-public') {
-          // Skip the /s3fs-public folder itself, since it's not "real".
-          continue;
-        }
-        $metadata['uri'] = str_replace('s3://s3fs-public/', 'public://', $metadata['uri']);
-      }
-      
       // Write the file metadata to the DB.
       $insert_query->values($metadata);
       
       // Add the ancestor folders of this file to the $folders array.
       $uri = drupal_dirname($metadata['uri']);
-      // Loop through each ancestor folder until we get to the root folder.
+      // Loop through each ancestor folder until we get to the root uri.
       while ($uri != 's3://' && $uri != 'public://') {
         $folders[$uri] = TRUE;
         $uri = drupal_dirname($uri);
@@ -600,16 +541,16 @@ function _s3fs_get_amazons3_client($config) {
     if (!$library['loaded']) {
       throw new S3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
     }
-    elseif (!class_exists('Aws\S3\S3Client')) {
+    else if (!class_exists('Aws\S3\S3Client')) {
       throw new S3fsException(t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.'));
     }
-    elseif (!$use_instance_profile && (!$secret_key || !$access_key)) {
+    else if (!$use_instance_profile && (!$secret_key || !$access_key)) {
       throw new S3fsException(t("Your AWS credentials have not been properly configured. Please set them on the S3 File System !settings_page or
         set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file.",
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
-    elseif ($use_instance_profile && empty($default_cache_config)) {
+    else if ($use_instance_profile && empty($default_cache_config)) {
       throw new s3fsException(t("Your AWS credentials have not been properly configured.
         You are attempting to use instance profile credentials but you have not set a default cache location.
         Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in your site's settings.php file.",
@@ -617,7 +558,7 @@ function _s3fs_get_amazons3_client($config) {
       );
     }
     
-    // Create and configure the S3Client object.
+    // Create and configure the Aws\S3\S3Client object.
     if ($use_instance_profile) {
       $credentials = array('default_cache_config' => $default_cache_config);
     }
@@ -659,7 +600,10 @@ function _s3fs_get_config() {
       $config[substr($key, 5)] = $value;
     }
   }
-  
+  if (!empty($config['root_folder'])) {
+    // Remove any leading or trailing slashes, in case the user added them.
+    $config['root_folder'] = trim($config['root_folder'], '\/');
+  }
   return $config;
 }
 

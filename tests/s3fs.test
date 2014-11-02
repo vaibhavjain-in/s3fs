@@ -147,7 +147,7 @@ else {
     }
     
     /**
-     * Test the full and partial cache refresh.
+     * Test the cache refresh.
      */
     public function testCacheRefresh() {
       // This is here, rather than the setUp() function, because we want the
@@ -159,15 +159,15 @@ else {
       }
       
       // Add several files to the bucket using the AWS SDK directly, so that
-      // s3fs wont cache them.
+      // s3fs won't cache them.
       $filenames = array('files/test2.txt', 'parts/test3.txt', 'test.txt', );
       foreach ($filenames as $filename) {
         $this->s3->upload($this->s3_bucket, $filename, 'testtesttest', 'public-read');
       }
       
-      // Run a regular cache refresh, being sure to use no prefix.
+      // Run a regular cache refresh, being sure to use no root_folder.
       $config = _s3fs_get_config();
-      $config['prefix'] = '';
+      $config['root_folder'] = '';
       _s3fs_refresh_cache($config);
       
       // Query the DB to confirm that all the new files are cached.
@@ -181,9 +181,10 @@ else {
       }
       $this->assertEqual($filenames, $cached_files, 'The test files were all cached.');
       
-      // Flush the cache, then do a partial refresh on only one folder.
+      // Flush the cache, then do a refresh using the root_folder setting.
+      // Only the file in the root folder (test3.txt) should become cached.
       $delete_query = db_delete('s3fs_file')->execute();
-      $config['prefix'] = 'parts';
+      $config['root_folder'] = 'parts';
       _s3fs_refresh_cache($config);
       
       // Confirm that only the file in the "parts" folder was cached.
@@ -193,7 +194,7 @@ else {
         ->execute()
         ->fetchAll();
       $this->assertEqual(count($records), 1, 'There was only one file in the partially rereshed cache.');
-      $this->assertEqual($records[0]->uri, 's3://parts/test3.txt', 'That file was the one in the "parts" folder.');
+      $this->assertEqual($records[0]->uri, 's3://test3.txt', 'That file was the one in the "parts" folder, which is now the root folder, so "parts" is not in the URI.');
     }
   } // END S3fsTests class
 }

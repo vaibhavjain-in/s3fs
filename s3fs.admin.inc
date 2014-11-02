@@ -179,18 +179,19 @@ function s3fs_settings() {
     ),
     '#default_value' => !empty($config['use_s3_for_public']) ? $config['use_s3_for_public'] : FALSE,
   );
-  $form['s3fs_prefix'] = array(
+  $form['s3fs_root_folder'] = array(
     '#type'           => 'textfield',
-    '#title'          => t('Partial Refresh Prefix'),
-    '#default_value'  => !empty($config['prefix']) ? $config['prefix'] : '',
+    '#title'          => t('S3FS Root Folder'),
+    '#default_value'  => !empty($config['root_folder']) ? $config['root_folder'] : '',
     '#description'   => t(
-      'If you want the "Refresh file metadata cache" action to refresh only some of the contents of your
-      bucket, provide a file path prefix in this field.<br>
-      For example, setting this option to "images/" will refresh only the files with a URI that matches s3://images/*.
-      This setting is case sensitive.'
+      'S3 File System uses the specified folder as the root of the filesystem (if blank, the bucket root is used).
+      This is helpful in cases where your bucket is used by multiple sites, or has additional data in it which s3fs should not interfere with.<br>
+      The metadata refresh function will not retrieve metadata for any files which are outside the root folder.<br>
+      This setting is case sensitive. Do not include leading or trailing slashes.<br>
+      Changing this setting <b>will not</b> move any files. If you\'ve already uploaded files to S3 through s3fs, you will need to manually move
+      them into this folder.'
     ),
   );
-  
   $form['s3fs_presigned_urls'] = array(
     '#type' => 'textarea',
     '#title' => t('Presigned URLs'),

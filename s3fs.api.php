@@ -27,7 +27,9 @@
  *     - 'api_args': array of additional arguments to the getObject() function:
  *       http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_getObject
  * @param string $s3_file_path
- *   The path to the file within your S3 bucket.
+ *   The path to the file within your S3 bucket. This includes the prefixes
+ *   which might be added (e.g. s3fs-public/ for public:// files, or the
+ *   S3FS Root Folder setting).
  *
  * @return array
  *   The modified array of configuration items.

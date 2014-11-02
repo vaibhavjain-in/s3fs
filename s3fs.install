@@ -186,15 +186,15 @@ function s3fs_install() {
   $options = Database::getConnectionInfo('default');
   switch ($options['default']['driver']) {
     case 'pgsql':
-      // Postgres uses binary collation by default
+      // Postgres uses binary collation by default.
       break;
     case 'sqlite':
-      // SQLite uses binary collation by default
+      // SQLite uses binary collation by default.
       break;
     case 'mysql':
       // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
       // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
-      // 'utf8_bin' collation fulfills our case-sensitivity requirement.
+      // 'utf8_bin' collation works for our purposes.
       db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
       break;
   }

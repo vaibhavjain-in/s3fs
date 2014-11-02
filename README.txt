@@ -87,7 +87,7 @@ Because of the way browsers interpret relative URLs used in CSS files, if you
 want your site's aggregated/public CSS to be placed in S3, you'll need to set
 up your webserver as a proxy for those files. S3 File System will present all
 public:// css files with the url prefix /s3fs-css/, so you need to set up your
-server to proxy all URLs with that prefix into your S3 bucket.
+webserver to proxy all URLs with that prefix into your S3 bucket.
 
 For Apache, add this code to the right location* in your server's config:
 
@@ -112,9 +112,41 @@ I'm unfamiliar with non-Apache webservers, but if you've set up a Drupal site
 using a different server, I assume you can translate these directives to your
 server's config format.
 
-Also, if you're using the "Enable CNAME" option to store your files in a
-non-Amazon file service, you'll need to change the proxy target to the
-appropriate URL for your service.
+If you're using the "Enable CNAME" option to store your files in a non-Amazon
+file service, you'll need to change the proxy target to the appropriate URL
+for your service.
+
+If you're using the "S3FS Root Folder" option, you'll need to insert that
+folder before the /s3fs-public/ part of the target URL.
+
+===========================================
+== Upgrading from S3 File System 7.x-1.x ==
+===========================================
+s3fs 7.x-2.x is not 100% backwards-compatible with 7.x-1.x. Most things will
+work the same, but if you were using certain options in 1.x, you'll need to
+perform some manual intervention to handle the upgrade to 2.x.
+
+The Partial Refresh Prefix setting has been replaced with the Root Folder
+setting. Root Folder fulfills the same purpose, but the implementation is
+sufficiently different that you'll need to re-configure your site, and
+possibly rearrange the files in your S3 bucket to make it work.
+
+With Root Folder, *everything* s3fs does is contained to the specified folder
+in your bucket. s3fs acts like the root folder is the bucket root, which means
+that the URIs for your files will not reflect the root folder's existence.
+Thus, you won't need to configure anything else, like the "file directory"
+setting of file and image fields, to make it work.
+
+This is different from how Partial Refresh Prefix worked, because that prefix
+*was* reflected in the uris, and you had to configure your file and image
+fields appropriately.
+
+So, when upgrading to 7.x-2.x, you'll need to set the Root Folder option to the
+same value that you had for Partial Refresh Prefix, and then remove that folder
+from your fields' "File directory" settings. Then, move every file that s3fs
+previously put into your bucket into the Root Folder. And if there are other
+files in your bucket that you want s3fs to know about, move them into there,
+too. Then do a metadata refresh.
 
 ==================
 == Known Issues ==
