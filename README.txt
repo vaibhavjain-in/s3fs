@@ -74,11 +74,24 @@ Visit admin/config/media/file-system and set the "Default download method" to
 Add a field of type File, Image, etc and set the "Upload destination" to
 "Amazon Simple Storage Service" in the "Field Settings" tab.
 
-This will configure your site to store *uploaded* files in S3. Files which your
-site creates automatically (such as aggregated CSS) will still be stored in the
-public filesystem, because Drupal is hard-coded to use public:// for such
-files. A future version of S3 File System will add support for storing these
-files in S3, as well, but there is currently no ETA for this feature.
+This will configure your site to store new uploaded files in S3. Files which
+your site creates automatically (such as aggregated CSS) will still be stored
+in the public filesystem, because Drupal is hard-coded to use public:// for
+such files.
+
+However, s3fs can be configured to handle these files, as well. In the s3fs
+configuration settings, you can enable the "Use S3 for public:// files" and/or
+"Use S3 for private:// files" options to make s3fs take over the job of the
+public and/or private filesystem. If you do this, existing public and private
+files on your site will still be served from the local filesystem, but newly
+created/uploaded files will be placed in S3.
+
+PLEASE NOTE: After enabling either of these options, any file that gets
+uploaded to S3 with the same filename as a file that's already in the local
+flesytem will be ignored. s3fs is designed to serve existing local files, and
+it will skip same-named files because of that. You'll likely wish to re-upload
+existing files so that they'll get put into S3, after which you should delete
+their local counterparts.
 
 ==========================
 == Aggregated CSS in S3 ==

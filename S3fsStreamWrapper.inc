@@ -32,6 +32,18 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected $uri = NULL;
   
   /**
+   * Used for locally-existing private files only.
+   *
+   * If $this->handle is set, all the stream_* functions mirror
+   * DrupalLocalStreamWrapper's implementations. This is so existing code
+   * that doesn't know about s3fs, and can't be redirected like with public
+   * files, can work properly.
+   *
+   * @var handle
+   */
+  protected $handle = NULL;
+  
+  /**
    * The AWS SDK for PHP S3Client object.
    *
    * @var Aws\S3\S3Client
@@ -588,8 +600,25 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // We don't care about the binary flag, so strip it out.
     $this->access_mode = $mode = rtrim($mode, 'bt');
     $this->params = $this->_get_params($uri);
-    $errors = array();
     
+    // If this is a private file that exists locally, we need to shortcircuit
+    // S3 entirely and work on a local file handle, instead.
+    if (file_uri_scheme($uri) == 'private' && variable_get('file_private_path', FALSE)) {
+      $path = variable_get('file_private_path') . '/' . $this->getTarget($uri);
+      $realpath = realpath($path);
+      if ($realpath) {
+        // This file exists locally, so serve it like a normal file.
+        $this->handle = ($options & STREAM_REPORT_ERRORS) ? fopen($realpath, $mode) : @fopen($realpath, $mode);
+  
+        if ((bool)$this->handle && $options & STREAM_USE_PATH) {
+          $opened_path = $path;
+        }
+  
+        return (bool) $this->handle;
+      }
+    }
+    
+    $errors = array();
     if (strpos($mode, '+')) {
       $errors[] = t('The S3 File System stream wrapper does not allow simultaneous reading and writing.');
     }
@@ -617,24 +646,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Support for fclose().
-   *
-   * Clears the object buffer.
-   *
-   * @return bool
-   *   Always returns TRUE.
-   *
-   * @see http://php.net/manual/en/streamwrapper.stream-close.php
-   */
-  public function stream_close() {
-    $this->_debug("stream_close() called for {$this->uri}.");
-    
-    $this->body = NULL;
-    $this->params = NULL;
-    return TRUE;
-  }
-  
-  /**
    * This wrapper does not support flock().
    *
    * @return bool
@@ -643,8 +654,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-lock.php
    */
   public function stream_lock($operation) {
-    $this->_debug("stream_lock($operation) called. S3fsStreamWrapper doesn't support this function.");
-    
+    $this->_debug("stream_lock($operation) called. S3fsStreamWrapper supports this function only on local private files.");
+    if ($this->handle && in_array($operation, array(LOCK_SH, LOCK_EX, LOCK_UN, LOCK_NB))) {
+      return flock($this->handle, $operation);
+    }
     return FALSE;
   }
   
@@ -661,6 +674,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_read($count) {
     $this->_debug("stream_read($count) called for {$this->uri}.");
+    if ($this->handle) {
+      return fread($this->handle, $count);
+    }
     
     return $this->body->read($count);
   }
@@ -679,6 +695,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_write($data) {
     $bytes = strlen($data);
     $this->_debug("stream_write() called with $bytes bytes of data for {$this->uri}.");
+    if ($this->handle) {
+      return fwrite($this->handle, $data);
+    }
     
     return $this->body->write($data);
   }
@@ -693,6 +712,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_eof() {
     $this->_debug("stream_eof() called for {$this->uri}.");
+    if ($this->handle) {
+      return feof($this->handle);
+    }
     
     return $this->body->feof();
   }
@@ -712,6 +734,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_seek($offset, $whence) {
     $this->_debug("stream_seek($offset, $whence) called.");
+    if ($this->handle) {
+      // fseek returns 0 on success and -1 on a failure.
+      // stream_seek   1 on success and  0 on a failure.
+      return !fseek($this->handle, $offset, $whence);
+    }
     
     return $this->body->seek($offset, $whence);
   }
@@ -726,6 +753,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_flush() {
     $this->_debug("stream_flush() called for {$this->uri}.");
+    
+    if ($this->handle) {
+      return fflush($this->handle);
+    }
     
     if ($this->access_mode == 'r') {
       return FALSE;
@@ -778,6 +809,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_tell() {
     $this->_debug("stream_tell() called.");
     
+    if ($this->handle) {
+      return ftell($this->handle);
+    }
+    
     return $this->body->ftell();
   }
   
@@ -791,6 +826,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_stat() {
     $this->_debug("stream_stat() called for {$this->uri}.");
+    
+    if ($this->handle) {
+      return fstat($this->handle);
+    }
     
     $stat = fstat($this->body->getStream());
     // Add the size of the underlying stream if it is known.
@@ -813,6 +852,28 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->_debug("stream_cast($cast_as) called.");
     
     return $this->body->getStream();
+  }
+  
+  /**
+   * Support for fclose().
+   *
+   * Clears the object buffer.
+   *
+   * @return bool
+   *   Always returns TRUE.
+   *
+   * @see http://php.net/manual/en/streamwrapper.stream-close.php
+   */
+  public function stream_close() {
+    $this->_debug("stream_close() called for {$this->uri}.");
+    
+    if ($this->handle) {
+      return fclose($this->handle);
+    }
+    
+    $this->body = NULL;
+    $this->params = NULL;
+    return TRUE;
   }
   
   /**
@@ -1016,6 +1077,18 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function url_stat($uri, $flags) {
     $this->_assert_constructor_called();
     $this->_debug("url_stat($uri, $flags) called.");
+    
+    // If this is a private file that exists locally, just call stat() on it.
+    if (file_uri_scheme($uri) == 'private' && variable_get('file_private_path', FALSE)) {
+      $path = variable_get('file_private_path') . '/' . $this->getTarget($uri);
+      $realpath = realpath($path);
+      if ($flags & STREAM_URL_STAT_QUIET || !file_exists($realpath)) {
+        return @stat($path);
+      }
+      else {
+        return stat($path);
+      }
+    }
     
     return $this->_stat($uri);
   }
