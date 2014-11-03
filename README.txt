@@ -112,12 +112,12 @@ I'm unfamiliar with non-Apache webservers, but if you've set up a Drupal site
 using a different server, I assume you can translate these directives to your
 server's config format.
 
-If you're using the "Enable CNAME" option to store your files in a non-Amazon
-file service, you'll need to change the proxy target to the appropriate URL
-for your service.
+If you're using the "Use a Custom Host" option to store your files in a
+non-Amazon file service, you'll need to change the proxy target to the
+appropriate URL for your service.
 
 If you're using the "S3FS Root Folder" option, you'll need to insert that
-folder before the /s3fs-public/ part of the target URL.
+folder before the /s3fs-public/ part of the target URLs.
 
 ===========================================
 == Upgrading from S3 File System 7.x-1.x ==

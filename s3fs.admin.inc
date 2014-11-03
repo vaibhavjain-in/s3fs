@@ -179,6 +179,15 @@ function s3fs_settings() {
     ),
     '#default_value' => !empty($config['use_s3_for_public']) ? $config['use_s3_for_public'] : FALSE,
   );
+  $form['s3fs_use_s3_for_private'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t('Use S3 for private:// files'),
+    '#description'   => t(
+      'Enable this option to store all files which would be uploaded to or created in the private://
+      filesystem in your S3 bucket instead.'
+    ),
+    '#default_value' => !empty($config['use_s3_for_private']) ? $config['use_s3_for_private'] : FALSE,
+  );
   $form['s3fs_root_folder'] = array(
     '#type'           => 'textfield',
     '#title'          => t('S3FS Root Folder'),
@@ -223,7 +232,7 @@ function s3fs_settings() {
     '#description' => t(
       'A list of paths that should be delivered via BitTorrent.<br>
       Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
-      <b>Paths which are already set as Presigned URLs or Forced Save As cannot be delivered as torrents.</b>',
+      <b>Private files and paths which are already set as Presigned URLs or Forced Save As cannot be delivered as torrents.</b>',
       array('!link' => l('preg_match', 'http://php.net/preg_match'))
     ),
     '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',

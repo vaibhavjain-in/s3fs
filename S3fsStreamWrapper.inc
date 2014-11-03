@@ -311,6 +311,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     $s3_key = file_uri_target($this->uri);
     
+    // If this is a private:// file, it's always served through the
+    // system/files/$path URL, which allows Drupal to restrict access based on
+    // who's logged in.
+    if (file_uri_scheme($this->uri) == 'private') {
+      // Convert backslashes from windows filenames to forward slashes.
+      $path = str_replace('\\', '/', $s3_key);
+      return url("system/files/$path", array('absolute' => TRUE));
+    }
+    
     // If this is a public:// file, check if it exists locally. If it does,
     // serve the local URL. This is needed so that we can serve files which
     // were created on the public:// filesystem before s3fs took over.
@@ -342,7 +351,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if ($path_parts[0] == 'styles' || ($path_parts[0] == 's3fs-public' && $path_parts[1] == 'styles')) {
       if (!$this->_s3fs_get_object($this->uri)) {
         // Remove the s3fs-public folder, since we don't need it in the image
-        // style generation url. Drupal tells us the scheme automatically.
+        // style generation url.
         if ($path_parts[0] == 's3fs-public') {
           array_shift($path_parts);
         }
@@ -727,9 +736,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $upload_params = $this->params;
     $upload_params['Body'] = $this->body;
     $upload_params['ContentType'] = S3fsStreamWrapper::getMimeType($this->uri);
-    // All files uploaded to S3 must be set to public-read, or users' browsers
-    // will get PermissionDenied errors, and torrent URLs won't work.
-    $upload_params['ACL'] = 'public-read';
+    if (file_uri_scheme($this->uri) != 'private') {
+      // All non-private files uploaded to S3 must be set to public-read, or users' browsers
+      // will get PermissionDenied errors, and torrent URLs won't work.
+      $upload_params['ACL'] = 'public-read';
+    }
     // Set the Cache-Control header, if the user specified one.
     if ($this->cacheControlHeader) {
       $upload_params['CacheControl'] = $this->cacheControlHeader;
@@ -862,7 +873,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Add the copyObject() parameters.
     $to_params['CopySource'] = "/{$from_params['Bucket']}/" . rawurlencode($from_params['Key']);
     $to_params['MetadataDirective'] = 'COPY';
-    $to_params['ACL'] = 'public-read';
+    if (file_uri_scheme($from_uri) != 'private') {
+      $to_params['ACL'] = 'public-read';
+    }
     
     try {
       // Copy the original object to the specified destination.
@@ -1337,11 +1350,16 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $params['Bucket'] = $this->config['bucket'];
     $params['Key'] = file_uri_target($uri);
     
-    // public:// file are all placed under the s3fs-public/ folder.
+    // public:// file are all placed in the s3fs-public/ folder.
     if (file_uri_scheme($uri) == 'public') {
       $params['Key'] = "s3fs-public/{$params['Key']}";
     }
-    // If it's set, all files are placed under the root folder.
+    // private:// file are all placed in the s3fs-private/ folder.
+    else if (file_uri_scheme($uri) == 'private') {
+      $params['Key'] = "s3fs-private/{$params['Key']}";
+    }
+    
+    // If it's set, all files are placed in the root folder.
     if (!empty($this->config['root_folder'])) {
       $params['Key'] = "{$this->config['root_folder']}/{$params['Key']}";
     }
