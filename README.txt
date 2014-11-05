@@ -65,13 +65,13 @@ will not be able to access any files you copied into your bucket manually until
 S3FS's cache learns of them. This is true of folders as well; s3fs will not be
 able to copy files into folders that it doesn't know about.
 
-=================================================================
-== Tell Your Site to Use s3fs Instead of the Public Filesystem ==
-=================================================================
-Visit admin/config/media/file-system and set the "Default download method" to
-"Amazon Simple Storage Service"
+============================================
+== How to Configure Your Site to Use s3fs ==
+============================================
+Visit the admin/config/media/file-system page and set the "Default download
+method" to "Amazon Simple Storage Service"
 -and/or-
-Add a field of type File, Image, etc and set the "Upload destination" to
+Add a field of type File, Image, etc. and set the "Upload destination" to
 "Amazon Simple Storage Service" in the "Field Settings" tab.
 
 This will configure your site to store new uploaded files in S3. Files which
@@ -79,19 +79,22 @@ your site creates automatically (such as aggregated CSS) will still be stored
 in the public filesystem, because Drupal is hard-coded to use public:// for
 such files.
 
-However, s3fs can be configured to handle these files, as well. In the s3fs
-configuration settings, you can enable the "Use S3 for public:// files" and/or
-"Use S3 for private:// files" options to make s3fs take over the job of the
-public and/or private filesystem. If you do this, existing public and private
-files on your site will still be served from the local filesystem, but newly
-created/uploaded files will be placed in S3.
+However, s3fs can be configured to handle these files, as well. On the s3fs
+configuration page (admin/config/media/s3fs) you can enable the "Use S3 for
+public:// files" and/or "Use S3 for private:// files" options to make s3fs
+take over the job of the public and/or private file systems. This will cause
+your site to store newly uploaded/generated files from the public/private file
+system in S3 instead of the local file system. However, it will make any
+existing files in those file systems become invisible to Drupal. To remedy
+this, you'll need to copy those files into your S3 bucket.
 
-PLEASE NOTE: After enabling either of these options, any file that gets
-uploaded to S3 with the same filename as a file that's already in the local
-flesytem will be ignored. s3fs is designed to serve existing local files, and
-it will skip same-named files because of that. You'll likely wish to re-upload
-existing files so that they'll get put into S3, after which you should delete
-their local counterparts.
+You are strongly encouraged to use the drush command "drush s3fs-copy-local"
+to do this, as it will copy all the files into the correct subfolders in your
+bucket, according to your s3fs configuration, and will write them to the
+metadata cache. If you don't have drush, you can use the buttons provided on
+the S3FS Actions page (admin/config/media/s3fs/actions), though the copy
+operation may fail if you have a lot of files, or very large files. The drush
+command will cleanly handle any combination of files.
 
 ==========================
 == Aggregated CSS in S3 ==

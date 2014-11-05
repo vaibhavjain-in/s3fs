@@ -32,18 +32,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected $uri = NULL;
   
   /**
-   * Used for locally-existing private files only.
-   *
-   * If $this->handle is set, all the stream_* functions mirror
-   * DrupalLocalStreamWrapper's implementations. This is so existing code
-   * that doesn't know about s3fs, and can't be redirected like with public
-   * files, can work properly.
-   *
-   * @var handle
-   */
-  protected $handle = NULL;
-  
-  /**
    * The AWS SDK for PHP S3Client object.
    *
    * @var Aws\S3\S3Client
@@ -319,59 +307,46 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    *   A web accessible URL for the resource.
    */
   public function getExternalUrl() {
-    $this->_debug("getExternalUri() called for {$this->uri}.");
+    $this->_debug("getExternalUrl() called for {$this->uri}.");
     
-    $s3_key = file_uri_target($this->uri);
+    // In case we're on Windows, replace backslashes with forward-slashes.
+    $s3_key = str_replace('\\', '/', file_uri_target($this->uri));
     
-    // If this is a private:// file, it's always served through the
-    // system/files/$path URL, which allows Drupal to restrict access based on
-    // who's logged in.
+    // If this is a private:// file, it's *always* served through the
+    // system/files/$path URL, which allows Drupal to restrict access
+    // based on who's logged in.
     if (file_uri_scheme($this->uri) == 'private') {
       // Convert backslashes from windows filenames to forward slashes.
       $path = str_replace('\\', '/', $s3_key);
       return url("system/files/$path", array('absolute' => TRUE));
     }
     
-    // If this is a public:// file, check if it exists locally. If it does,
-    // serve the local URL. This is needed so that we can serve files which
-    // were created on the public:// filesystem before s3fs took over.
-    if (file_uri_scheme($this->uri) == 'public') {
-      // Convert backslashes from windows filenames to forward slashes.
-      $path = str_replace('\\', '/', $s3_key);
-      $file_public_path = variable_get('file_public_path', conf_path() . '/files');
-      if (file_exists(realpath("$file_public_path/$path"))) {
-        return "{$GLOBALS['base_url']}/$file_public_path/" . drupal_encode_path($path);
+    // When generating an image derivative URL, e.g. styles/thumbnail/blah.jpg,
+    // if the file doesn't exist, provide a URL to s3fs's special version of
+    // image_style_deliver(), which will create the derivative when that URL
+    // gets requested.
+    $path_parts = explode('/', $s3_key);
+    if ($path_parts[0] == 'styles' && substr($s3_key, -4) != '.css') {
+      if (!$this->_s3fs_get_object($this->uri)) {
+        // The style delivery path looks like: s3/files/styles/thumbnail/...
+        // And $path_parts looks like array('styles', 'thumbnail', ...),
+        // so just prepend s3/files/.
+        array_unshift($path_parts, 's3', 'files');
+        return url(implode('/', $path_parts), array('absolute' => TRUE));
       }
-      else if (substr($path, -4) == '.css') {
+    }
+    
+    // Deal with public:// files.
+    if (file_uri_scheme($this->uri) == 'public') {
+      if (substr($s3_key, -4) == '.css') {
         // Send requests for public CSS files to /s3fs-css/path/to/file.css.
         // Users must set that path up in the webserver config as a proxy into
         // their S3 bucket's s3fs-public/ folder.
-        return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($path);
+        return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($s3_key);
       }
       else {
         // public:// files are stored in S3 inside the s3fs-public/ folder.
         $s3_key = "s3fs-public/$s3_key";
-      }
-    }
-    
-    // Image styles support:
-    // If an image derivative URL (e.g. styles/thumbnail/blah.jpg) is generated
-    // and the file doesn't exist, provide a URL to s3fs's special version of
-    // image_style_deliver(), which will create the derivative when that URL
-    // gets requested.
-    $path_parts = explode('/', $s3_key);
-    if ($path_parts[0] == 'styles' || ($path_parts[0] == 's3fs-public' && $path_parts[1] == 'styles')) {
-      if (!$this->_s3fs_get_object($this->uri)) {
-        // Remove the s3fs-public folder, since we don't need it in the image
-        // style generation url.
-        if ($path_parts[0] == 's3fs-public') {
-          array_shift($path_parts);
-        }
-        // The style delivery path looks like: s3/files/styles/<style>/...
-        // And $path_parts looks like array('styles', '<style>', ...), so
-        // just add the extra parts to the beginning.
-        array_unshift($path_parts, 's3', 'files');
-        return url(implode('/', $path_parts), array('absolute' => TRUE));
       }
     }
     
@@ -380,7 +355,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $s3_key = "{$this->config['root_folder']}/$s3_key";
     }
     
-    // Set up the URL settings from the Settings page.
+    // Set up the URL settings as speciied in our settings page.
     $url_settings = array(
       'torrent' => FALSE,
       'presigned_url' => FALSE,
@@ -467,33 +442,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
-   * Returns the local writable target of the resource within the stream.
-   *
-   * This function should be used in place of calls to realpath() or similar
-   * functions when attempting to determine the location of a file. While
-   * functions like realpath() may return the location of a read-only file, this
-   * method may return a URI or path suitable for writing that is completely
-   * separate from the URI used for reading.
-   *
-   * @param string $uri
-   *   Optional URI.
-   *
-   * @return string
-   *   A location suitable for writing a file.
-   */
-  protected function getTarget($uri = NULL) {
-    $this->_debug("getTarget($uri) called.");
-    
-    if (!isset($uri)) {
-      $uri = $this->uri;
-    }
-    $data = explode('://', $uri, 2);
-    // Remove erroneous leading or trailing forward-slashes and backslashes.
-    return isset($data[1]) ? trim($data[1], '\/') : FALSE;
-  }
-  
-  /**
    * Gets the path that the wrapper is responsible for.
+   *
+   * This function isn't part of DrupalStreamWrapperInterface, but the rest
+   * of Drupal calls it as if it were, so we need to define it.
    *
    * @return string
    *   The empty string. Since this is a remote stream wrapper,
@@ -510,9 +462,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   ***************************************************************************/
   
   /**
-   * Changes permissions of the resource.
-   *
-   * This wrapper doesn't support the concept of filesystem permissions.
+   * This wrapper doesn't support file permissions.
    *
    * @param int $mode
    *   The file's desired permissions in octal. Consult PHP chmod() documentation
@@ -563,8 +513,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $uri = $this->uri;
     }
     $scheme = file_uri_scheme($uri);
-    $target = $this->getTarget($uri);
-    $dirname = dirname($target);
+    $dirname = dirname(file_uri_target($uri));
     
     // When the dirname() call above is given '$scheme://', it returns '.'.
     // But '$scheme://.' is an invalid uri, so we return "$scheme://" instead.
@@ -600,25 +549,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // We don't care about the binary flag, so strip it out.
     $this->access_mode = $mode = rtrim($mode, 'bt');
     $this->params = $this->_get_params($uri);
-    
-    // If this is a private file that exists locally, we need to shortcircuit
-    // S3 entirely and work on a local file handle, instead.
-    if (file_uri_scheme($uri) == 'private' && variable_get('file_private_path', FALSE)) {
-      $path = variable_get('file_private_path') . '/' . $this->getTarget($uri);
-      $realpath = realpath($path);
-      if ($realpath) {
-        // This file exists locally, so serve it like a normal file.
-        $this->handle = ($options & STREAM_REPORT_ERRORS) ? fopen($realpath, $mode) : @fopen($realpath, $mode);
-  
-        if ((bool)$this->handle && $options & STREAM_USE_PATH) {
-          $opened_path = $path;
-        }
-  
-        return (bool) $this->handle;
-      }
-    }
-    
     $errors = array();
+    
     if (strpos($mode, '+')) {
       $errors[] = t('The S3 File System stream wrapper does not allow simultaneous reading and writing.');
     }
@@ -646,6 +578,24 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /**
+   * Support for fclose().
+   *
+   * Clears the object buffer.
+   *
+   * @return bool
+   *   Always returns TRUE.
+   *
+   * @see http://php.net/manual/en/streamwrapper.stream-close.php
+   */
+  public function stream_close() {
+    $this->_debug("stream_close() called for {$this->uri}.");
+    
+    $this->body = NULL;
+    $this->params = NULL;
+    return TRUE;
+  }
+  
+  /**
    * This wrapper does not support flock().
    *
    * @return bool
@@ -654,10 +604,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    * @see http://php.net/manual/en/streamwrapper.stream-lock.php
    */
   public function stream_lock($operation) {
-    $this->_debug("stream_lock($operation) called. S3fsStreamWrapper supports this function only on local private files.");
-    if ($this->handle && in_array($operation, array(LOCK_SH, LOCK_EX, LOCK_UN, LOCK_NB))) {
-      return flock($this->handle, $operation);
-    }
+    $this->_debug("stream_lock($operation) called. S3fsStreamWrapper doesn't support this function.");
+    
     return FALSE;
   }
   
@@ -674,9 +622,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_read($count) {
     $this->_debug("stream_read($count) called for {$this->uri}.");
-    if ($this->handle) {
-      return fread($this->handle, $count);
-    }
     
     return $this->body->read($count);
   }
@@ -695,9 +640,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_write($data) {
     $bytes = strlen($data);
     $this->_debug("stream_write() called with $bytes bytes of data for {$this->uri}.");
-    if ($this->handle) {
-      return fwrite($this->handle, $data);
-    }
     
     return $this->body->write($data);
   }
@@ -712,9 +654,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_eof() {
     $this->_debug("stream_eof() called for {$this->uri}.");
-    if ($this->handle) {
-      return feof($this->handle);
-    }
     
     return $this->body->feof();
   }
@@ -734,11 +673,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_seek($offset, $whence) {
     $this->_debug("stream_seek($offset, $whence) called.");
-    if ($this->handle) {
-      // fseek returns 0 on success and -1 on a failure.
-      // stream_seek   1 on success and  0 on a failure.
-      return !fseek($this->handle, $offset, $whence);
-    }
     
     return $this->body->seek($offset, $whence);
   }
@@ -753,10 +687,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_flush() {
     $this->_debug("stream_flush() called for {$this->uri}.");
-    
-    if ($this->handle) {
-      return fflush($this->handle);
-    }
     
     if ($this->access_mode == 'r') {
       return FALSE;
@@ -809,10 +739,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_tell() {
     $this->_debug("stream_tell() called.");
     
-    if ($this->handle) {
-      return ftell($this->handle);
-    }
-    
     return $this->body->ftell();
   }
   
@@ -826,10 +752,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function stream_stat() {
     $this->_debug("stream_stat() called for {$this->uri}.");
-    
-    if ($this->handle) {
-      return fstat($this->handle);
-    }
     
     $stat = fstat($this->body->getStream());
     // Add the size of the underlying stream if it is known.
@@ -852,28 +774,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->_debug("stream_cast($cast_as) called.");
     
     return $this->body->getStream();
-  }
-  
-  /**
-   * Support for fclose().
-   *
-   * Clears the object buffer.
-   *
-   * @return bool
-   *   Always returns TRUE.
-   *
-   * @see http://php.net/manual/en/streamwrapper.stream-close.php
-   */
-  public function stream_close() {
-    $this->_debug("stream_close() called for {$this->uri}.");
-    
-    if ($this->handle) {
-      return fclose($this->handle);
-    }
-    
-    $this->body = NULL;
-    $this->params = NULL;
-    return TRUE;
   }
   
   /**
@@ -1077,18 +977,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function url_stat($uri, $flags) {
     $this->_assert_constructor_called();
     $this->_debug("url_stat($uri, $flags) called.");
-    
-    // If this is a private file that exists locally, just call stat() on it.
-    if (file_uri_scheme($uri) == 'private' && variable_get('file_private_path', FALSE)) {
-      $path = variable_get('file_private_path') . '/' . $this->getTarget($uri);
-      $realpath = realpath($path);
-      if ($flags & STREAM_URL_STAT_QUIET || !file_exists($realpath)) {
-        return @stat($path);
-      }
-      else {
-        return stat($path);
-      }
-    }
     
     return $this->_stat($uri);
   }
@@ -1300,13 +1188,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected function _read_cache($uri) {
     $this->_debug("_read_cache($uri) called.", TRUE);
     
-    // Sometimes there's a leading / in the paths of public:// files, which
-    // messed up our cache because a uri means the same thing with or without
-    // the slash (e.g. public:///.htaccess is the same as public://.htaccess).
-    // We trim off that extra slash for consistency.
+    // Since public:///blah.jpg and public://blah.jpg refer to the same file
+    // (a file named blah.jpg at the root of the file system), we'll sometimes
+    // receive files with a /// in their URI. This messes with our caching
+    // scheme, though, so we need to remove the extra /.
     if (strpos($uri, 'public:///') === 0) {
-      //$uri = str_replace('public:///', 'public://', $uri);
       $uri = preg_replace('^public://[/]+^', 'public://', $uri);
+    }
+    else if (strpos($uri, 'private:///') === 0) {
+      $uri = preg_replace('^private://[/]+^', 'private://', $uri);
     }
     
     $record = db_select('s3fs_file', 's')
@@ -1333,12 +1223,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected function _write_cache($metadata) {
     $this->_debug("_write_cache({$metadata['uri']}) called.", TRUE);
     
-    // Sometimes there's a leading / in the paths of public:// files, which
-    // messed up our cache because a uri means the same thing with or without
-    // the slash (e.g. public:///.htaccess is the same as public://.htaccess).
-    // We trim off extra leading slashes for consistency.
+    // Since public:///blah.jpg and public://blah.jpg refer to the same file
+    // (a file named blah.jpg at the root of the file system), we'll sometimes
+    // receive files with a /// in their URI. This messes with our caching
+    // scheme, though, so we need to remove the extra /.
     if (strpos($metadata['uri'], 'public:///') === 0) {
       $metadata['uri'] = preg_replace('^public://[/]+^', 'public://', $metadata['uri']);
+    }
+    else if (strpos($metadata['uri'], 'private:///') === 0) {
+      $metadata['uri'] = preg_replace('^private://[/]+^', 'private://', $metadata['uri']);
     }
     
     db_merge('s3fs_file')

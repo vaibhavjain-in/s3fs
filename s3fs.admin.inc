@@ -160,7 +160,7 @@ function s3fs_settings() {
     '#title'         => t('Ignore the file metadata cache'),
     '#description'   => t(
       "If you need to debug a problem with S3, you may want to temporarily ignore the file metadata cache.
-      This will make all filesystem reads hit S3 instead of the cache.<br>
+      This will make all file system reads hit S3 instead of the cache.<br>
       <b>This causes s3fs to work extremely slowly, and should never be enabled on a production site.</b>"
     ),
     '#default_value' => !empty($config['ignore_cache']) ? $config['ignore_cache'] : FALSE,
@@ -170,10 +170,10 @@ function s3fs_settings() {
     '#title'         => t('Use S3 for public:// files'),
     '#description'   => t(
       'Enable this option to store all files which would be uploaded to or created in the public://
-      filesystem in your S3 bucket instead.<br><br>
+      file system in your S3 bucket instead.<br><br>
       <b>PLEASE NOTE:</b> If you intend to use Drupal\'s "Aggregate and compress CSS files" performance
-      option, or will be using any other system that writes CSS files into your site\'s public:// file
-      system, you <b>must</b> perform some additional configuration on your webserver to make those css
+      option, or will be using any other system that writes CSS files into your site\'s public:// file system,
+      you <b>must</b> perform some additional configuration on your webserver to make those css
       files work right when stored in S3. Please see the section titled "Aggregated CSS in S3" in the
       !README for details.', array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
     ),
@@ -184,18 +184,18 @@ function s3fs_settings() {
     '#title'         => t('Use S3 for private:// files'),
     '#description'   => t(
       'Enable this option to store all files which would be uploaded to or created in the private://
-      filesystem in your S3 bucket instead.'
+      file system in your S3 bucket instead.'
     ),
     '#default_value' => !empty($config['use_s3_for_private']) ? $config['use_s3_for_private'] : FALSE,
   );
   $form['s3fs_root_folder'] = array(
     '#type'           => 'textfield',
-    '#title'          => t('S3FS Root Folder'),
+    '#title'          => t('Root Folder'),
     '#default_value'  => !empty($config['root_folder']) ? $config['root_folder'] : '',
     '#description'   => t(
-      'S3 File System uses the specified folder as the root of the filesystem (if blank, the bucket root is used).
-      This is helpful in cases where your bucket is used by multiple sites, or has additional data in it which s3fs should not interfere with.<br>
-      The metadata refresh function will not retrieve metadata for any files which are outside the root folder.<br>
+      'S3 File System uses the specified folder as the root of the file system within your bucket (if blank, the bucket root is used).
+      This is helpful when your bucket is used by multiple sites, or has additional data in it which s3fs should not interfere with.<br>
+      The metadata refresh function will not retrieve metadata for any files which are outside the Root Folder.<br>
       This setting is case sensitive. Do not include leading or trailing slashes.<br>
       Changing this setting <b>will not</b> move any files. If you\'ve already uploaded files to S3 through s3fs, you will need to manually move
       them into this folder.'
@@ -289,7 +289,7 @@ function s3fs_actions() {
     '#title' => t('File Metadata Cache'),
   );
   $refresh_description = t(
-    "This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket, and saves it to the
+    "This button queries S3 for the metadata of <i><b>all</b></i> the files in your site's bucket (unless you use the Root Folder option), and saves it to the
     database. This may take a while for buckets with many thousands of files. <br>
     It should only be necessary to use this button if you've just installed S3 File System and you need to cache all the
     pre-existing files in your bucket, or if you need to restore your metadata cache from scratch for some other reason."
@@ -308,6 +308,41 @@ function s3fs_actions() {
     '#submit' => array('_s3fs_refresh_cache_submit'),
   );
   
+  $config = _s3fs_get_config();
+  $use_public = !empty($config['use_s3_for_public']);
+  $use_private = !empty($config['use_s3_for_private']);
+  
+  if ($use_public || $use_private) {
+    $form['s3fs_copy_local'] = array(
+      '#type' => 'fieldset',
+      '#description' => t(
+        "Since you have S3 File System configured to take over for the public and/or private file systems, you
+        may wish to copy the files that were previously uploaded to your site into your S3 bucket. <br>
+        If you have a lot of files, or very large files, you'll want to use <i>drush s3fs-copy-local</i>
+        instead of this form, as the limitations imposed by browsers may break very long copy operations."
+      ),
+      '#title' => t('Copy Local Files to S3'),
+    );
+    if ($use_public) {
+      $form['s3fs_copy_local']['public'] = array(
+        '#type' => 'submit',
+        '#prefix' => '<br>',
+        '#name' => 'public',
+        '#value' => t('Copy local public files to S3'),
+        '#submit' => array('_s3fs_copy_local_submit'),
+      );
+    }
+    if ($use_private) {
+      $form['s3fs_copy_local']['private'] = array(
+        '#type' => 'submit',
+        '#prefix' => '<br>',
+        '#name' => 'private',
+        '#value' => t('Copy local private files to S3'),
+        '#submit' => array('_s3fs_copy_local_submit'),
+      );
+    }
+  }
+  
   return $form;
 }
 
@@ -318,3 +353,11 @@ function _s3fs_refresh_cache_submit($form, &$form_state) {
   $config = _s3fs_get_config();
   _s3fs_refresh_cache($config);
 }
+
+/**
+ * Submit callback for the "Copy local files to S3" buttons.
+ */
+function _s3fs_copy_local_submit($form, &$form_state) {
+  _s3fs_copy_file_system_to_s3($form_state['triggering_element']['#name']);
+}
+

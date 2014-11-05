@@ -99,7 +99,7 @@ else {
       $this->assertTrue(isset($files[$test_uri2]), 'The second test file is in the tests directory.');
       $this->assertEqual(count($files), 2, "There are exactly two files in the tests directory.");
       
-      debug('Exercising getExternalUri().');
+      debug('Exercising getExternalUrl().');
       $url = file_create_url($test_uri1);
       $this->assertNotIdentical($url, FALSE, 'file_create_url() succeeded.');
       
