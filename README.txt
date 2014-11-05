@@ -96,14 +96,16 @@ the S3FS Actions page (admin/config/media/s3fs/actions), though the copy
 operation may fail if you have a lot of files, or very large files. The drush
 command will cleanly handle any combination of files.
 
-==========================
-== Aggregated CSS in S3 ==
-==========================
-Because of the way browsers interpret relative URLs used in CSS files, if you
-want your site's aggregated/public CSS to be placed in S3, you'll need to set
-up your webserver as a proxy for those files. S3 File System will present all
-public:// css files with the url prefix /s3fs-css/, so you need to set up your
-webserver to proxy all URLs with that prefix into your S3 bucket.
+=================================
+== Aggregated CSS and JS in S3 ==
+=================================
+Because of the way browsers interpret relative URLs used in CSS files, and how
+they restrict requests made from external javascript files, if you want your
+site's aggregated CSS and JS to be placed in S3, you'll need to set up your
+webserver as a proxy for those files. S3 File System will present all public://
+css files with the url prefix /s3fs-css/, and all public javascript files with
+/s3fs-js/, so you need to set up your webserver to proxy all URLs with those
+prefixes into your S3 bucket.
 
 For Apache, add this code to the right location* in your server's config:
 
@@ -115,6 +117,8 @@ SSLProxyEngine on
 </Proxy>
 ProxyPass /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
 ProxyPassReverse /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
+ProxyPass /s3fs-js/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
+ProxyPassReverse /s3fs-js/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
 
 * The "right location" is implementation-dependent. Normally, placing these
 lines at the bottom of your httpd.conf file should be sufficient. However, if

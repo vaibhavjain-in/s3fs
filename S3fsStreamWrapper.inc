@@ -344,6 +344,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
         // their S3 bucket's s3fs-public/ folder.
         return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($s3_key);
       }
+      else if (substr($s3_key, -3) == '.js') {
+        // Send requests for public JS files to /s3fs-js/path/to/file.js.
+        // Like with CSS, the user must set up that path as a proxy.
+        return "{$GLOBALS['base_url']}/s3fs-js/" . drupal_encode_path($s3_key);
+      }
       else {
         // public:// files are stored in S3 inside the s3fs-public/ folder.
         $s3_key = "s3fs-public/$s3_key";

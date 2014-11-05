@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Sets up the S3fsStreamWrapper class to be used as a Drupal file system.
+ * Hook implementations and other primary functionality for S3 File System.
  */
 
 /**
