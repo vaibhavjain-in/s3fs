@@ -463,6 +463,49 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
   
   /***************************************************************************
+              Public Functions for External Use of the Wrapper
+  ***************************************************************************/
+  
+  /**
+   * Wait for the specified file to exist in the bucket.
+   *
+   * @param string $uri
+   *   The URI of the file.
+   *
+   * @return bool
+   *   Returns TRUE once the waiting finishes, or FALSE if the file does not
+   *   begin to exist within 10 seconds.
+   */
+  public function waitUntilFileExists($uri) {
+    $wait_params = $this->_get_params($uri);
+    // Retry ten times, once every second.
+    $wait_params['waiter.max_attempts'] = 10;
+    $wait_params['waiter.interval'] = 1;
+    try {
+      $this->s3->waitUntilObjectExists($wait_params);
+    }
+    catch (Aws\Common\Exception\RuntimeException $e) {
+      return FALSE;
+    }
+    return TRUE;
+  }
+  
+  /**
+   * Write the file at the given URI into the metadata cache.
+   *
+   * This function is public so that other code can upload files to S3 and
+   * then have us write the correct metadata into our cache.
+   */
+  public function writeUriToCache($uri) {
+    if (!$this->waitUntilFileExists($uri)) {
+      throw new S3fsException(t('The file at URI %file oes not exist in S3.', array('%file' => $uri)));
+    }
+    $metadata = $this->_get_metadata_from_s3($uri);
+    $this->_write_cache($metadata);
+    clearstatcache(TRUE, $uri);
+  }
+  
+  /***************************************************************************
                       PHP Stream Wrapper Implementations
   ***************************************************************************/
   
@@ -717,14 +760,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     try {
       $this->s3->putObject($upload_params);
-      $this->waitUntilFileExists($this->uri);
-      $metadata = $this->_get_metadata_from_s3($this->uri);
-      if ($metadata === FALSE) {
-        // This should never happen, but just in case...
-        throw new Exception(t('Uploading the file %file to S3 failed in an unexpected way.', array('%file' => $this->uri)));
-      }
-      $this->_write_cache($metadata);
-      clearstatcache(TRUE, $this->uri);
+      $this->writeUriToCache($this->uri);
       return TRUE;
     }
     catch (\Exception $e) {
@@ -892,7 +928,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // with slashes in their names). We store folders in the metadata cache,
     // but don't create an object for them in S3.
     $metadata = _s3fs_convert_metadata($uri, array());
-    $metadata['timestamp'] = date('U', time());
+    $metadata['timestamp'] = REQUEST_TIME;
     $this->_write_cache($metadata);
     
     // If the STREAM_MKDIR_RECURSIVE option was specified, also create all the
@@ -1430,7 +1466,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    *   Any exception raised by the listObjects() S3 command will percolate
    *   out of this function.
    */
-  function _get_metadata_from_s3($uri) {
+  protected function _get_metadata_from_s3($uri) {
     $this->_debug("_get_metadata_from_s3($uri) called.", TRUE);
     
     $params = $this->_get_params($uri);
@@ -1444,30 +1480,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
     
     return _s3fs_convert_metadata($uri, $result);
-  }
-  
-  /**
-   * Wait for the specified file to exist in the bucket.
-   *
-   * @param string $uri
-   *   The URI of the file.
-   *
-   * @return bool
-   *   Returns TRUE once the waiting finishes, or FALSE if the file does not
-   *   begin to exist within 10 seconds.
-   */
-  public function waitUntilFileExists($uri) {
-    $wait_params = $this->_get_params($uri);
-    // Retry ten times, once every second.
-    $wait_params['waiter.max_attempts'] = 10;
-    $wait_params['waiter.interval'] = 1;
-    try {
-      $this->s3->waitUntilObjectExists($wait_params);
-    }
-    catch (Aws\Common\Exception\RuntimeException $e) {
-      return FALSE;
-    }
-    return TRUE;
   }
   
   /**

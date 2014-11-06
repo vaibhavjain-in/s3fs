@@ -239,8 +239,6 @@ function s3fs_settings() {
     '#rows' => 5,
   );
   
-  // Once the system settings form has been fully set up, add our additional
-  // submit callback.
   $form = system_settings_form($form);
   return $form;
 }
