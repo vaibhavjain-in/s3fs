@@ -315,7 +315,7 @@ function s3fs_actions() {
       '#type' => 'fieldset',
       '#description' => t(
         "Since you have S3 File System configured to take over for the public and/or private file systems, you
-        may wish to copy the files that were previously uploaded to your site into your S3 bucket. <br>
+        may wish to copy any files which were previously uploaded to your site into your S3 bucket. <br>
         If you have a lot of files, or very large files, you'll want to use <i>drush s3fs-copy-local</i>
         instead of this form, as the limitations imposed by browsers may break very long copy operations."
       ),

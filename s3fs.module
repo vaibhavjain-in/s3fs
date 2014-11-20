@@ -182,6 +182,14 @@ function _s3fs_image_style_deliver() {
   $image_uri = "$scheme://$filename";
   $derivative_uri = image_style_path($style['name'], $image_uri);
   
+  // Confirm that the original source image exists before trying to process it.
+  if (!is_file($image_uri)) {
+    watchdog('s3fs', 'Source image at %source_image_path not found while trying to generate derivative image at %derivative_path.',
+      array('%source_image_path' => $image_uri, '%derivative_path' => $derivative_uri)
+    );
+    return MENU_NOT_FOUND;
+  }
+  
   // Don't start generating the image if the derivative already exists or if
   // generation is in progress in another thread.
   $lock_name = "_s3fs_image_style_deliver:{$style['name']}:" . drupal_hash_base64($image_uri);
@@ -191,6 +199,7 @@ function _s3fs_image_style_deliver() {
       // Tell client to retry again in 3 seconds. Currently no browsers are known
       // to support Retry-After.
       drupal_add_http_header('Status', '503 Service Unavailable');
+      drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
       drupal_add_http_header('Retry-After', 3);
       print t('Image generation in progress. Try again shortly.');
       drupal_exit();
@@ -218,6 +227,7 @@ function _s3fs_image_style_deliver() {
   else {
     watchdog('S3 File System', 'Unable to generate an image derivative at %path.', array('%path' => $derivative_uri));
     drupal_add_http_header('Status', '500 Internal Server Error');
+    drupal_add_http_header('Content-Type', 'text/html; charset=utf-8');
     print t('Error generating image.');
     drupal_exit();
   }
