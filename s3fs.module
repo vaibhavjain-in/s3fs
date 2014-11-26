@@ -581,23 +581,23 @@ function _s3fs_get_amazons3_client($config) {
       );
     }
     
-    // Create and configure the Aws\S3\S3Client object.
+    // Create the Aws\S3\S3Client object.
     if ($use_instance_profile) {
-      $credentials = array('default_cache_config' => $default_cache_config);
+      $client_config = array('default_cache_config' => $default_cache_config);
     }
     else {
-      $credentials = array(
+      $client_config = array(
         'key'    => $access_key,
         'secret' => $secret_key,
       );
     }
-    $s3 = Aws\S3\S3Client::factory($credentials);
     if (!empty($config['region'])) {
-      $s3->setRegion($config['region']);
+      $client_config['region'] = $config['region'];
     }
     if (!empty($config['use_customhost']) && !empty($config['hostname'])) {
-      $s3->setBaseURL($config['hostname']);
+      $client_config['base_url'] = $config['hostname'];
     }
+    $s3 = Aws\S3\S3Client::factory($client_config);
   }
   $static_config = $config;
   return $s3;

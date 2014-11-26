@@ -19,6 +19,7 @@ function s3fs_settings() {
     'us-west-1' => 'US West - Northern California  (us-west-1)',
     'us-west-2' => 'US West - Oregon (us-west-2)',
     'eu-west-1' => 'EU - Ireland  (eu-west-1)',
+    'eu-central-1' => 'EU - Frankfurt (eu-central-1)',
     'ap-southeast-1' => 'Asia Pacific - Singapore (ap-southeast-1)',
     'ap-southeast-2' => 'Asia Pacific - Sydney (ap-southeast-2)',
     'ap-northeast-1' => 'Asia Pacific - Tokyo (ap-northeast-1)',
