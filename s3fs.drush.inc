@@ -53,7 +53,7 @@ function drush_s3fs_copy_local() {
     );
     return;
   }
-  if (empty($config['use_s3_for_public']) && empty($config['use_s3_for_public'])) {
+  if (empty($config['use_s3_for_public']) && empty($config['use_s3_for_private'])) {
     drupal_set_message(
       t('S3 File System is not configured to take over any other file systems.')
     );
