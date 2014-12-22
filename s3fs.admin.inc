@@ -172,10 +172,10 @@ function s3fs_settings() {
     '#description'   => t(
       'Enable this option to store all files which would be uploaded to or created in the public://
       file system in your S3 bucket instead.<br><br>
-      <b>PLEASE NOTE:</b> If you intend to use Drupal\'s "Aggregate and compress CSS files" performance
-      option, or will be using any other system that writes CSS files into your site\'s public:// file system,
-      you <b>must</b> perform some additional configuration on your webserver to make those css
-      files work right when stored in S3. Please see the section titled "Aggregated CSS in S3" in the
+      <b>PLEASE NOTE:</b> If you intend to use Drupal\'s performance options which aggregate your CSS or Javascript
+      files, or will be using any other system that writes CSS or Javascript files into your site\'s public:// file system,
+      you <b>must</b> perform some additional configuration on your webserver to make those
+      files work correctly when stored in S3. Please see the section titled "Aggregated CSS and JS in S3" in the
       !README for details.', array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
     ),
     '#default_value' => !empty($config['use_s3_for_public']) ? $config['use_s3_for_public'] : FALSE,
