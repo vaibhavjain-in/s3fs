@@ -96,6 +96,16 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   protected static $mimeTypeMapping = NULL;
   
+  /**
+   * Indicates the current error state in the wrapper.
+   *
+   * This allows _trigger_error() to tell other stream_* functions to return
+   * FALSE when the wrapper encounters an error.
+   *
+   * @var bool
+   */
+  protected $_error_state = FALSE;
+  
   
   /**
    * Stream wrapper constructor.
@@ -498,7 +508,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function writeUriToCache($uri) {
     if (!$this->waitUntilFileExists($uri)) {
-      throw new S3fsException(t('The file at URI %file oes not exist in S3.', array('%file' => $uri)));
+      throw new S3fsException(t('The file at URI %file does not exist in S3.', array('%file' => $uri)));
     }
     $metadata = $this->_get_metadata_from_s3($uri);
     $this->_write_cache($metadata);
@@ -640,7 +650,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     $this->body = NULL;
     $this->params = NULL;
-    return TRUE;
+    return $this->_error_state;
   }
   
   /**
@@ -761,12 +771,12 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     try {
       $this->s3->putObject($upload_params);
       $this->writeUriToCache($this->uri);
-      return TRUE;
     }
     catch (\Exception $e) {
       $this->_debug($e->getMessage());
       return $this->_trigger_error($e->getMessage());
     }
+    return TRUE;
   }
   
   /**
@@ -839,12 +849,12 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $this->s3->deleteObject($this->_get_params($uri));
       $this->_delete_cache($uri);
       clearstatcache(TRUE, $uri);
-      return TRUE;
     }
     catch (\Exception $e) {
       $this->_debug($e->getMessage());
       return $this->_trigger_error($e->getMessage());
     }
+    return TRUE;
   }
   
   /**
@@ -1502,9 +1512,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
         throw new RuntimeException(implode("\n", (array) $errors));
       }
       else {
-        trigger_error(implode("\n", (array) $errors), E_USER_WARNING);
+        trigger_error(implode("\n", (array) $errors), E_USER_ERROR);
       }
     }
+    $this->_error_state = TRUE;
     return FALSE;
   }
   
