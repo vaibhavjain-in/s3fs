@@ -322,7 +322,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // In case we're on Windows, replace backslashes with forward-slashes.
     $s3_key = str_replace('\\', '/', file_uri_target($this->uri));
     
-    // If this is a private:// file, it's *always* served through the
+    // If this is a private:// file, it must be served through the
     // system/files/$path URL, which allows Drupal to restrict access
     // based on who's logged in.
     if (file_uri_scheme($this->uri) == 'private') {

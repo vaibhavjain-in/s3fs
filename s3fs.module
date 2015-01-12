@@ -52,6 +52,8 @@ function s3fs_stream_wrappers_alter(&$wrappers) {
       'class' => 'S3fsStreamWrapper',
       'description' => t('Private files served from Amazon S3.'),
       'type' => STREAM_WRAPPERS_NORMAL,
+      // Required by the file_eneity module to let it know that this is a private stream.
+      'private' => TRUE,
     );
   }
 }
@@ -149,6 +151,33 @@ function s3fs_help($path, $arg) {
     return "<p>$msg</p>";
   }
 }
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Disables the "file system path" fields from the system module's
+ * file_system_settings form when s3fs is taking them over. They do have an
+ * effect if the user makes use of the s3fs-copy-local drush commands, but
+ * we don't want users to think of these fields as being meaningful once s3fs
+ * has alreayd taken over.
+ */
+function s3fs_form_system_file_system_settings_alter(&$form, &$form_state, $form_id) {
+  $config = _s3fs_get_config();
+  if (!empty($config['use_s3_for_public'])) {
+    $form['file_public_path']['#attributes'] = array('disabled' => 'disabled');
+    $form['file_public_path']['#description'] = 'S3 File System has taken control of the public:// filesystem, making this setting irrelevent for typical use.';
+  }
+  
+  if (!empty($config['use_s3_for_private'])) {
+    $form['file_private_path']['#attributes'] = array('disabled' => 'disabled');
+    $form['file_private_path']['#description'] = 'S3 File System has taken control of the private:// filesystem, making this setting irrelevent for typical use.';
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                          INTERNAL FUNCTIONS
+///////////////////////////////////////////////////////////////////////////////
+
 
 /**
  * Generates an image derivative in S3.
