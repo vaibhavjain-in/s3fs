@@ -941,7 +941,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // with slashes in their names). We store folders in the metadata cache,
     // but don't create an object for them in S3.
     $metadata = _s3fs_convert_metadata($uri, array());
-    $metadata['timestamp'] = REQUEST_TIME;
     $this->_write_cache($metadata);
     
     // If the STREAM_MKDIR_RECURSIVE option was specified, also create all the

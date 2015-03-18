@@ -533,7 +533,7 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
   $metadata = array(
     'uri' => $uri,
     'filesize' => 0,
-    'timestamp' => time(),
+    'timestamp' => REQUEST_TIME,
     'dir' => 0,
     'version' => '',
   );
