@@ -10,7 +10,7 @@ viable under such a configuration.
 == Dependencies and Other Requirements ==
 =========================================
 - Libraries API 2.x - https://drupal.org/project/libraries
-- AWS SDK for PHP (library) = http://aws.amazon.com/sdk-for-php
+- AWS SDK for PHP - http://aws.amazon.com/sdk-for-php
 - PHP 5.3.3+ is required. The AWS SDK will not work on earlier versions.
 - Your PHP must be configured with "allow_url_fopen = On" in your php.ini file.
   Otherwise, PHP will be unable to open files that are in your S3 bucket.
@@ -20,16 +20,19 @@ viable under such a configuration.
 ==================
 1) Install Libraries version 2.x from http://drupal.org/project/libraries.
 
-2) Install the AWS SDK for PHP by going to http://aws.amazon.com/sdk-for-php
-and clicking the orange "AWS SDK for PHP" button. On the page you're sent to,
-click the green "aws.zip" button. Extract that zip file into your Drupal site's
+2) Install the AWS SDK for PHP.
+2a) If you have drush, you can install the SDK with this command:
+drush make --no-core sites/all/modules/s3fs/s3fs.make
+2b) If you don't have drush, go to to http://aws.amazon.com/sdk-for-php
+and click the orange "AWS SDK for PHP" button. On the page you're sent to,
+click the "aws.zip" link. Extract that zip file into your Drupal site's
 sites/all/libraries/awssdk2 folder such that the path to aws-autoloader.php is
 sites/all/libraries/awssdk2/aws-autoloader.php
 
 In the unlikely circumstance that the version of the SDK you downloaded causes
 errors with S3 File System, you can download this version instead, which is
 known to work:
-https://github.com/aws/aws-sdk-php/releases/download/2.6.3/aws.zip
+https://github.com/aws/aws-sdk-php/releases/download/2.7.25/aws.zip
 
 IN CASE OF TROUBLE DETECTING THE AWS SDK LIBRARY:
 Ensure that the awssdk2 folder itself, and all the files within it, can be read
@@ -104,7 +107,7 @@ they restrict requests made from external javascript files, if you want your
 site's aggregated CSS and JS to be placed in S3, you'll need to set up your
 webserver as a proxy for those files. S3 File System will present all public://
 css files with the url prefix /s3fs-css/, and all public javascript files with
-/s3fs-js/, so you need to set up your webserver to proxy all URLs with those
+/s3fs-js/. So you need to set up your webserver to proxy all URLs with those
 prefixes into your S3 bucket.
 
 For Apache, add this code to the right location* in your server's config:
