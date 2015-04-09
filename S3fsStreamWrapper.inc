@@ -396,12 +396,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
-    // Throw a deprecation warning if any modules implement the old hook.
-    // TODO: Remove this in April 2015, six months after the old hook was removed.
-    if (module_implements('s3fs_url_info')) {
-      trigger_error('hook_s3fs_url_info() is deprecated. Please use hook_s3fs_url_settings_alter() instead.', E_USER_DEPRECATED);
-    }
-    
     // Allow other modules to change the URL settings.
     drupal_alter('s3fs_url_settings', $url_settings, $uri);
     

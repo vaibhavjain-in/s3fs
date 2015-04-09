@@ -54,12 +54,3 @@ function hook_s3fs_upload_params_alter(&$upload_params){
     $upload_params['ACL'] = 'private';
   }
 }
-
-/**
- * This is the old version of hook_s3fs_url_settings_alter(). It is now
- * DEPRECATED. If your code is still invoking this hook, please update to
- * hook_s3fs_url_settings_alter().
- */
-function hook_s3fs_url_info($local_path, &$url_settings) {
-  
-}
