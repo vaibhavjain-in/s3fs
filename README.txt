@@ -128,12 +128,22 @@ lines at the bottom of your httpd.conf file should be sufficient. However, if
 your site is configured to use SSL, you'll need to put these lines in the
 VirtuaHost settings for both your normal and SSL sites.
 
+
+For nginx, add this to your server config:
+
+location ~* ^/(s3fs-css|s3fs-js)/(.*) {
+  set $s3_base_path 'YOUR-BUCKET.s3.amazonaws.com/s3fs-public';
+  set $file_path $2;
+
+  resolver         172.16.0.23 valid=300s;
+  resolver_timeout 10s;
+
+  proxy_pass http://$s3_base_path/$file_path;
+}
+
+
 The /s3fs-public/ subfolder is where s3fs stores the files from the public://
 filesystem, to avoid name conflicts with files from the s3:// filesystem.
-
-I'm unfamiliar with non-Apache webservers, but if you've set up a Drupal site
-using a different server, I assume you can translate these directives to your
-server's config format.
 
 If you're using the "Use a Custom Host" option to store your files in a
 non-Amazon file service, you'll need to change the proxy target to the
