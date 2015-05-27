@@ -759,3 +759,24 @@ function _s3fs_recursive_dir_scan($dir) {
   }
   return $output;
 }
+
+/**
+ * Implements hook_field_default_field_bases_alter().
+ *
+ * Allows a variable to override all exported field bases to use 'Amazon S3' as
+ * the Upload destination. For example this can be added to environment-specific
+ * Drupal settings files, to allow certain environments to upload to S3 while
+ * other environments upload to the exported (public or private) URI scheme:
+ * @code
+ * $conf['s3fs_file_uri_scheme_override'] = 's3';
+ * @endcode
+ */
+function s3fs_field_default_field_bases_alter(&$fields) {
+  if ($uri_scheme = variable_get('s3fs_file_uri_scheme_override', FALSE)) {
+    foreach ($fields as $key => $item) {
+      if (isset($item['settings']['uri_scheme'])) {
+        $fields[$key]['settings']['uri_scheme'] = $uri_scheme;
+      }
+    }
+  }
+}
