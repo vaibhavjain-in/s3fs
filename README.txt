@@ -152,6 +152,11 @@ appropriate URL for your service.
 If you're using the "S3FS Root Folder" option, you'll need to insert that
 folder before the /s3fs-public/ part of the target URLs.
 
+Under some domain name setups, you may be able to avoid the need for proxying
+by having the same domain name as your site also point to your S3 bucket. If
+that is the case with your site, enable the "Don't rewrite CSS/JS file paths"
+option to prevent s3fs from prefixing the URLs for CSS/JS files.
+
 ===========================================
 == Upgrading from S3 File System 7.x-1.x ==
 ===========================================

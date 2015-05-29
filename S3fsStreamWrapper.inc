@@ -351,21 +351,23 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     
     // Deal with public:// files.
     if (file_uri_scheme($this->uri) == 'public') {
-      if (substr($uri, -4) == '.css') {
-        // Send requests for public CSS files to /s3fs-css/path/to/file.css.
-        // Users must set that path up in the webserver config as a proxy into
-        // their S3 bucket's s3fs-public/ folder.
-        return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($uri);
+      // Rewrite all css/js file paths unless the user has told us not to.
+      if (!$this->config['no_rewrite_cssjs']) {
+        if (substr($uri, -4) == '.css') {
+          // Send requests for public CSS files to /s3fs-css/path/to/file.css.
+          // Users must set that path up in the webserver config as a proxy into
+          // their S3 bucket's s3fs-public/ folder.
+          return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($uri);
+        }
+        else if (substr($uri, -3) == '.js') {
+          // Send requests for public JS files to /s3fs-js/path/to/file.js.
+          // Like with CSS, the user must set up that path as a proxy.
+          return "{$GLOBALS['base_url']}/s3fs-js/" . drupal_encode_path($uri);
+        }
       }
-      else if (substr($uri, -3) == '.js') {
-        // Send requests for public JS files to /s3fs-js/path/to/file.js.
-        // Like with CSS, the user must set up that path as a proxy.
-        return "{$GLOBALS['base_url']}/s3fs-js/" . drupal_encode_path($uri);
-      }
-      else {
-        // public:// files are stored in S3 inside the s3fs-public/ folder.
-        $s3_key = "s3fs-public/$s3_key";
-      }
+
+      // public:// files are stored in S3 inside the s3fs-public/ folder.
+      $s3_key = "s3fs-public/$s3_key";
     }
     
     // Set up the URL settings as speciied in our settings page.

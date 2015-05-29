@@ -171,14 +171,28 @@ function s3fs_settings() {
     '#title'         => t('Use S3 for public:// files'),
     '#description'   => t(
       'Enable this option to store all files which would be uploaded to or created in the public://
-      file system in your S3 bucket instead.<br><br>
+      file system into your S3 bucket instead.<br><br>
       <b>PLEASE NOTE:</b> If you intend to use Drupal\'s performance options which aggregate your CSS or Javascript
       files, or will be using any other system that writes CSS or Javascript files into your site\'s public:// file system,
-      you <b>must</b> perform some additional configuration on your webserver to make those
-      files work correctly when stored in S3. Please see the section titled "Aggregated CSS and JS in S3" in the
-      !README for details.', array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
+      you must perform some additional configuration on your webserver to make those files work correctly when stored in S3.
+      Please see the section titled "Aggregated CSS and JS in S3" in the !README for details.',
+      array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
     ),
     '#default_value' => !empty($config['use_s3_for_public']) ? $config['use_s3_for_public'] : FALSE,
+  );
+  $form['s3fs_no_rewrite_cssjs'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Don't rewrite CSS/JS file paths"),
+    '#description' => t(
+      'If this box is checked, s3fs will NOT rewrite the CSS/JS file paths to "/s3fs-(css|js)/...". Instead, they will
+      be placed on the page with their regular CDN name. Only enable this option if you <b>know</b> you need it!'
+    ),
+    '#default_value' => !empty($config['no_rewrite_cssjs']) ? $config['no_rewrite_cssjs'] : FALSE,
+    '#states'        => array(
+      'visible' => array(
+        ':input[id=edit-s3fs-use-s3-for-public]' => array('checked' => TRUE),
+      ),
+    ),
   );
   $form['s3fs_use_s3_for_private'] = array(
     '#type'          => 'checkbox',
