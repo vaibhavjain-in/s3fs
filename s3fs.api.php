@@ -49,7 +49,7 @@ function hook_s3fs_url_settings_alter(&$url_settings, $s3_file_path) {
  *   Associative array of upload settings
  * @see http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_putObject
 */
-function hook_s3fs_upload_params_alter(&$upload_params){
+function hook_s3fs_upload_params_alter(&$upload_params) {
   if (strpos($upload_params['Key'], 'private/') !== FALSE){
     $upload_params['ACL'] = 'private';
   }

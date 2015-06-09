@@ -622,6 +622,9 @@ function _s3fs_get_amazons3_client($config) {
     }
     if (!empty($config['region'])) {
       $client_config['region'] = $config['region'];
+      // Signature v4 is only required in the Beijing and Frankfurt regions.
+      // Also, setting it will throw an exception if a region hasn't been set.
+      $client_config['signature'] = 'v4';
     }
     if (!empty($config['use_customhost']) && !empty($config['hostname'])) {
       $client_config['base_url'] = $config['hostname'];
