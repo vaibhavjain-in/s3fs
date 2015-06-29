@@ -6,6 +6,12 @@
  */
 
 /**
+ * The prefix for our Drupal-cached metadata.
+ */
+define('S3FS_CACHE_PREFIX', 's3fs:uri:');
+define('S3FS_CACHE_BIN', 'cache');
+
+/**
  * Class used to differentiate between known and unknown exception states.
  */
 class S3fsException extends Exception {}
@@ -471,6 +477,9 @@ function _s3fs_refresh_cache($config) {
   db_rename_table('s3fs_file_temp', 's3fs_file');
   db_drop_table('s3fs_file_old');
   
+  // Clear every s3fs entry in the Drupal cache.
+  cache_clear_all(S3FS_CACHE_PREFIX, S3FS_CACHE_BIN, TRUE);
+  
   drupal_set_message(t('S3 File System cache refreshed.'));
 }
 
@@ -675,9 +684,9 @@ function _s3fs_get_config() {
  * data has been cached in S3 (e.g. ctools css cache), the cache clearing
  * process itself will attempt to use S3FS. But if Libaries' cache has not yet
  * been cleared by this time, it will continue to insist that awssdk2 is not
- * installed, and the cache clear will crash  because s3fs can't function
- * function without the awssdk2 library. This leaves the site in an
- * unrecoverably broken state.
+ * installed, and the cache clear will crash because s3fs can't function
+ * without the awssdk2 library. This leaves the site in an unrecoverable broken
+ * state.
  *
  * @return array
  *   The array returned by libraries_load('awssdk2'), as if it used no cache.

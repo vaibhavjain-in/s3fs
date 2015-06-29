@@ -216,7 +216,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
     
-    $this->cacheControlHeader = !empty($this->config['cache_control_header']) ? $this->config['cache_control_header'] : NULL;
+    if (!empty($this->config['cache_control_header'])) {
+      $this->cacheControlHeader = $this->config['cache_control_header'];
+    }
     
     // Save all the work we just did, so that subsequent S3fsStreamWrapper
     // constructions don't have to repeat it.
@@ -1248,11 +1250,32 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $uri = preg_replace('^private://[/]+^', 'private://', $uri);
     }
     
-    $record = db_select('s3fs_file', 's')
-      ->fields('s')
-      ->condition('uri', $uri, '=')
-      ->execute()
-      ->fetchAssoc();
+    // Cache DB reads so that faster caching mechanisms (e.g. redis, memcache)
+    // can further improve performance.
+    $cid = S3FS_CACHE_PREFIX . $uri;
+    if ($cached = cache_get($cid, S3FS_CACHE_BIN)) {
+      $record = $cached->data;
+    }
+    else {
+      // Cache miss. Avoid a stampede.
+      if (!lock_acquire($cid, 1)) {
+        // Another request is building the variable cache. Wait, then re-run
+        // this function.
+        lock_wait($cid);
+        $record = $this->_read_cache($uri);
+      }
+      else {
+        $record = db_select('s3fs_file', 's')
+          ->fields('s')
+          ->condition('uri', $uri, '=')
+          ->execute()
+          ->fetchAssoc();
+
+        cache_set($cid, $record, S3FS_CACHE_BIN, CACHE_TEMPORARY);
+        lock_release($cid);
+      }
+    }
+    
     return $record ? $record : FALSE;
   }
   
@@ -1288,6 +1311,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       ->fields($metadata)
       ->execute();
     
+    // Clear this URI from the Drupal cache, to ensure the next read isn't
+    // from a stale cache entry.
+    $cid = S3FS_CACHE_PREFIX . $metadata['uri'];
+    cache_clear_all($cid, S3FS_CACHE_BIN);
+    
     $dirname = drupal_dirname($metadata['uri']);
     // If this file isn't in the root directory, also write this file's
     // ancestor folders to the cache.
@@ -1313,11 +1341,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $uri = array($uri);
     }
     
+    // Build an OR query to delete all the URIs at once.
     $delete_query = db_delete('s3fs_file');
-    // Build an OR condition to delete all the URIs in one query.
     $or = db_or();
     foreach ($uri as $u) {
       $or->condition('uri', $u, '=');
+      // Clear this URI from the Drupal cache.
+      $cid = S3FS_CACHE_PREFIX . $u;
+      cache_clear_all($cid, S3FS_CACHE_BIN);
     }
     $delete_query->condition($or);
     return $delete_query->execute();
