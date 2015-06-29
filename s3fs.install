@@ -82,13 +82,6 @@ function s3fs_requirements($phase) {
     );
   }
   
-  // Report the version number of S3 File System on the system status page.
-  $requirements['s3fs_version'] = array(
-    'title' => $t('S3 File System'),
-    'value' => S3FS_VERSION,
-    'severity' => REQUIREMENT_OK,
-  );
-  
   return $requirements;
 }
 

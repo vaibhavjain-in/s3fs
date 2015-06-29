@@ -6,11 +6,6 @@
  */
 
 /**
- * The version number of the current release.
- */
-define('S3FS_VERSION', '7.x-2.1');
-
-/**
  * Class used to differentiate between known and unknown exception states.
  */
 class S3fsException extends Exception {}
