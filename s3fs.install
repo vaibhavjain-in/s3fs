@@ -117,6 +117,7 @@ function s3fs_schema() {
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
+        'binary' => TRUE,
       ),
       'filesize' => array(
         'description' => 'The size of the file in bytes.',
@@ -147,14 +148,7 @@ function s3fs_schema() {
         'default' => '',
       ),
     ),
-    'indexes' => array(
-      'timestamp' => array('timestamp'),
-    ),
     'primary key' => array('uri'),
-    // As mentioned on http://drupal.org/node/2193059, a bug in Drupal core's
-    // MySQL driver prevents this setting from actually being applied. So we
-    // manually fix that in hook_install().
-    'collation' => 'utf8_bin',
   );
   return $schema;
 }
@@ -162,29 +156,10 @@ function s3fs_schema() {
 /**
  * Implements hook_install().
  *
- * Because hook_schema() doesn't respect the 'collation' setting, we have to
- * set the collation manually. This hook is run after the table is created.
- *
- * Also adds s3:// to the the core file module's list of public schema.
+ * Adds s3:// to the the core file module's list of public schema.
  * See https://www.drupal.org/node/2305017 for more info.
  */
 function s3fs_install() {
-  $options = Database::getConnectionInfo('default');
-  switch ($options['default']['driver']) {
-    case 'pgsql':
-      // Postgres uses binary collation by default.
-      break;
-    case 'sqlite':
-      // SQLite uses binary collation by default.
-      break;
-    case 'mysql':
-      // As stated here: http://forums.mysql.com/read.php?103,19380,200971#msg-200971
-      // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
-      // 'utf8_bin' collation works for our purposes.
-      db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
-      break;
-  }
-  
   s3fs_update_7201();
 }
 
@@ -338,4 +313,14 @@ function s3fs_update_7201() {
     $public_schema[] = 's3';
   }
   variable_set('file_public_schema', $public_schema);
+}
+
+/**
+ * Converts the `uri` column of the metadata table to BINARY.
+ */
+function s3fs_update_7202() {
+  // As of the introduction of this update hook, s3fs_schema() now defines
+  // the `uri` column with "binary = TRUE".
+  $schema = s3fs_schema();
+ db_change_field('s3fs_file', 'uri', 'uri', $schema['s3fs_file']['fields']['uri']);
 }
