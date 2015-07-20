@@ -24,6 +24,7 @@ function s3fs_settings() {
     'ap-southeast-2' => 'Asia Pacific - Sydney (ap-southeast-2)',
     'ap-northeast-1' => 'Asia Pacific - Tokyo (ap-northeast-1)',
     'sa-east-1' => 'South America - Sao Paulo (sa-east-1)',
+    'cn-north-1' => 'China - Beijing (cn-north-1)',
   );
   
   $form['s3fs_credentials'] = array(
@@ -89,7 +90,9 @@ function s3fs_settings() {
     '#title'         => t('S3 Region'),
     '#description'   => t(
       'The region in which your bucket resides. Be careful to specify this accurately,
-      as you are likely to see strange or broken behavior if the region is set wrong.'
+      as you are likely to see strange or broken behavior if the region is set wrong.
+      Use of the Beijing region requires a !CHINESE_AWS_ACCT.',
+      array('!CHINESE_AWS_ACCT' => l('亚马逊 AWS account', 'http://www.amazonaws.cn'))
     ),
     '#default_value' => !empty($config['region']) ? $config['region'] : '',
   );
