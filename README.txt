@@ -213,4 +213,5 @@ http://drupal.org/project/amazons3
 S3 File System started as a fork of her great module, but has evolved
 dramatically since then, becoming a very different beast. The main benefit of
 using S3 File System over AmazonS3 is performance, especially for image-
-related operations.
+related operations, due to the metadata cache that is central to S3
+File System's operation.
