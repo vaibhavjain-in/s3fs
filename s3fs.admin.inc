@@ -26,7 +26,7 @@ function s3fs_settings() {
     'sa-east-1' => 'South America - Sao Paulo (sa-east-1)',
     'cn-north-1' => 'China - Beijing (cn-north-1)',
   );
-  
+
   $form['s3fs_credentials'] = array(
     '#type' => 'fieldset',
     '#title' => t('Amazon Web Services Credentials'),
@@ -38,7 +38,7 @@ function s3fs_settings() {
     '#collapsible' => TRUE,
     '#collapsed' => !empty($config['awssdk2_access_key']) || !empty($config['use_instance_profile']),
   );
-  
+
   $form['s3fs_credentials']['s3fs_awssdk2_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Amazon Web Services Access Key'),
@@ -46,7 +46,7 @@ function s3fs_settings() {
   );
   // Override with awssdk2_access_key from settings.php, if set.
   $form['s3fs_credentials']['s3fs_awssdk2_access_key']['#default_value'] = variable_get('awssdk2_access_key', $access_key);
-  
+
   $form['s3fs_credentials']['s3fs_awssdk2_secret_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Amazon Web Services Secret Key'),
@@ -54,7 +54,7 @@ function s3fs_settings() {
   );
   // Override with awssdk2_secret_key from settings.php, if set.
   $form['s3fs_credentials']['s3fs_awssdk2_secret_key']['#default_value'] = variable_get('awssdk2_secret_key', $secret_key);
-  
+
   $form['s3fs_credentials']['s3fs_use_instance_profile'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use EC2 Instance Profile Credentials'),
@@ -77,7 +77,7 @@ function s3fs_settings() {
   );
   // Override with awssdk2_default_cache_config from settings.php, if set.
   $form['s3fs_credentials']['s3fs_awssdk2_default_cache_config']['#default_value'] = variable_get('awssdk2_default_cache_config', $cache_config);
-  
+
   $form['s3fs_bucket'] = array(
     '#type'           => 'textfield',
     '#title'          => t('S3 Bucket Name'),
@@ -256,7 +256,7 @@ function s3fs_settings() {
     '#default_value' => !empty($config['torrents']) ? $config['torrents'] : '',
     '#rows' => 5,
   );
-  
+
   $form = system_settings_form($form);
   return $form;
 }
@@ -290,11 +290,11 @@ function _s3fs_convert_form_state_to_config($form_state) {
  */
 function s3fs_actions() {
   $form = array();
-  
+
   // Drupal's menu system doesn't let you set the page title for tabs.
   // So we set it here.
   drupal_set_title('S3 File System Actions');
-  
+
   $form['s3fs_refresh_cache'] = array(
     '#type' => 'fieldset',
     '#description' => t(
@@ -323,11 +323,11 @@ function s3fs_actions() {
     ),
     '#submit' => array('_s3fs_refresh_cache_submit'),
   );
-  
+
   $config = _s3fs_get_config();
   $use_public = !empty($config['use_s3_for_public']);
   $use_private = !empty($config['use_s3_for_private']);
-  
+
   if ($use_public || $use_private) {
     $form['s3fs_copy_local'] = array(
       '#type' => 'fieldset',
@@ -358,7 +358,7 @@ function s3fs_actions() {
       );
     }
   }
-  
+
   return $form;
 }
 
