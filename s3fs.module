@@ -705,7 +705,8 @@ function _s3fs_copy_file_system_to_s3($scheme) {
   }
   else if ($scheme == 'private') {
     $source_folder = variable_get('file_private_path', '');
-    if (empty($source_folder) || empty($source_folder = realpath($source_folder))) {
+    $source_folder_real = realpath($source_folder);
+    if (empty($source_folder) || empty($source_folder_real)) {
       drupal_set_message('Private file system base path is unknown. Unable to perform S3 copy.', 'error');
       return;
     }
