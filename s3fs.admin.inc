@@ -18,6 +18,7 @@ function s3fs_settings() {
     'us-east-1' => 'US Standard (us-east-1)',
     'us-west-1' => 'US West - Northern California  (us-west-1)',
     'us-west-2' => 'US West - Oregon (us-west-2)',
+    'us-gov-west-1' => 'USA GovCloud Standard (us-gov-west-1)',
     'eu-west-1' => 'EU - Ireland  (eu-west-1)',
     'eu-central-1' => 'EU - Frankfurt (eu-central-1)',
     'ap-southeast-1' => 'Asia Pacific - Singapore (ap-southeast-1)',
@@ -90,9 +91,13 @@ function s3fs_settings() {
     '#title'         => t('S3 Region'),
     '#description'   => t(
       'The region in which your bucket resides. Be careful to specify this accurately,
-      as you are likely to see strange or broken behavior if the region is set wrong.
-      Use of the Beijing region requires a !CHINESE_AWS_ACCT.',
-      array('!CHINESE_AWS_ACCT' => l('亚马逊 AWS account', 'http://www.amazonaws.cn'))
+      as you are likely to see strange or broken behavior if the region is set wrong.<br>
+      Use of the USA GovCloud region requires !SPECIAL_PERMISSION.<br>
+      Use of the China - Beijing region requires a !CHINESE_AWS_ACCT.',
+      array(
+          '!CHINESE_AWS_ACCT' => l('亚马逊 AWS account', 'http://www.amazonaws.cn'),
+          '!SPECIAL_PERMISSION' => l('special permission', 'http://aws.amazon.com/govcloud-us/'),
+      )
     ),
     '#default_value' => !empty($config['region']) ? $config['region'] : '',
   );
