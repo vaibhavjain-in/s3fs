@@ -123,6 +123,12 @@ ProxyPassReverse /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
 ProxyPass /s3fs-js/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
 ProxyPassReverse /s3fs-js/ https://YOUR-BUCKET.s3.amazonaws.com/s3fs-public/
 
+If you're using the "S3FS Root Folder" option, you'll need to insert that
+folder before the /s3fs-public/ part of the target URLs. Like so:
+
+ProxyPass /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/YOUR-ROOT-FOLDER/s3fs-public/
+ProxyPassReverse /s3fs-css/ https://YOUR-BUCKET.s3.amazonaws.com/YOUR-ROOT-FOLDER/s3fs-public/
+
 * The "right location" is implementation-dependent. Normally, placing these
 lines at the bottom of your httpd.conf file should be sufficient. However, if
 your site is configured to use SSL, you'll need to put these lines in the
@@ -141,6 +147,7 @@ location ~* ^/(s3fs-css|s3fs-js)/(.*) {
   proxy_pass http://$s3_base_path/$file_path;
 }
 
+Again, be sure to take the S3FS Root Folder setting into account, here.
 
 The /s3fs-public/ subfolder is where s3fs stores the files from the public://
 filesystem, to avoid name conflicts with files from the s3:// filesystem.
@@ -148,9 +155,6 @@ filesystem, to avoid name conflicts with files from the s3:// filesystem.
 If you're using the "Use a Custom Host" option to store your files in a
 non-Amazon file service, you'll need to change the proxy target to the
 appropriate URL for your service.
-
-If you're using the "S3FS Root Folder" option, you'll need to insert that
-folder before the /s3fs-public/ part of the target URLs.
 
 Under some domain name setups, you may be able to avoid the need for proxying
 by having the same domain name as your site also point to your S3 bucket. If
