@@ -178,8 +178,8 @@ function s3fs_settings() {
     '#type'          => 'checkbox',
     '#title'         => t('Use S3 for public:// files'),
     '#description'   => t(
-      'Enable this option to store all files which would be uploaded to or created in the public://
-      file system into your S3 bucket instead.<br><br>
+      'Enable this option to store all files which would be uploaded to or created in the web server\'s local file system
+      within your S3 bucket instead.<br><br>
       <b>PLEASE NOTE:</b> If you intend to use Drupal\'s performance options which aggregate your CSS or Javascript
       files, or will be using any other system that writes CSS or Javascript files into your site\'s public:// file system,
       you must perform some additional configuration on your webserver to make those files work correctly when stored in S3.
@@ -207,7 +207,7 @@ function s3fs_settings() {
     '#title'         => t('Use S3 for private:// files'),
     '#description'   => t(
       'Enable this option to store all files which would be uploaded to or created in the private://
-      file system in your S3 bucket instead.'
+      file system (files available only to authneticated users) within your S3 bucket instead.'
     ),
     '#default_value' => !empty($config['use_s3_for_private']) ? $config['use_s3_for_private'] : FALSE,
   );

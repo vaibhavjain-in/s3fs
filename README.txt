@@ -79,8 +79,8 @@ Add a field of type File, Image, etc. and set the "Upload destination" to
 
 This will configure your site to store new uploaded files in S3. Files which
 your site creates automatically (such as aggregated CSS) will still be stored
-in the public filesystem, because Drupal is hard-coded to use public:// for
-such files.
+in the server's local filesystem, because Drupal is hard-coded to use the
+public:// filesystem for such files.
 
 However, s3fs can be configured to handle these files, as well. On the s3fs
 configuration page (admin/config/media/s3fs) you can enable the "Use S3 for
@@ -106,9 +106,9 @@ Because of the way browsers interpret relative URLs used in CSS files, and how
 they restrict requests made from external javascript files, if you want your
 site's aggregated CSS and JS to be placed in S3, you'll need to set up your
 webserver as a proxy for those files. S3 File System will present all public://
-css files with the url prefix /s3fs-css/, and all public javascript files with
-/s3fs-js/. So you need to set up your webserver to proxy all URLs with those
-prefixes into your S3 bucket.
+css files with the url prefix /s3fs-css/, and all public:// javascript files
+with /s3fs-js/. So you need to set up your webserver to proxy all URLs with
+those prefixes into your S3 bucket.
 
 For Apache, add this code to the right location* in your server's config:
 
@@ -206,8 +206,8 @@ eAccelerator, a deprecated opcode cache plugin for PHP, is incompatible with
 AWS SDK for PHP. eAccelerator will corrupt the configuration settings for
 the SDK's s3 client object, causing a variety of different exceptions to be
 thrown. If your server uses eAccelerator, it is highly recommended that you
-replace it with a different opcode cache plugin, as development on
-eAccelerator ended over 2 years ago.
+replace it with a different opcode cache plugin, as its development was
+abandoned several years ago.
 
 ======================
 == Acknowledgements ==
