@@ -74,13 +74,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   protected $presignedURLs = array();
 
   /**
-   * The header that controls how browsers and CDNs should cache a file.
-   *
-   * @var string
-   */
-  protected $cacheControlHeader = NULL;
-
-  /**
    * The constructor sets this to TRUE once it's finished.
    *
    * See the comment on _assert_constructor_called() for why this exists.
@@ -126,7 +119,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $this->torrents = $settings['torrents'];
       $this->presignedURLs = $settings['presignedURLs'];
       $this->saveas = $settings['saveas'];
-      $this->cacheControlHeader = $settings['cache_control_header'];
       $this->constructed = TRUE;
       return;
     }
@@ -174,7 +166,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
       else {
         // Due to the config form's validation, this shouldn't ever happen.
-        throw new Exception(t('The "Use CNAME" option is enabled, but no Domain Name has been set. S3fsStreamWrapper construction cannot continue.'));
+        throw new Exception(t('The "Use CNAME" option is enabled, but no Domain Name has been set.'));
       }
     }
 
@@ -216,10 +208,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
     }
 
-    if (!empty($this->config['cache_control_header'])) {
-      $this->cacheControlHeader = $this->config['cache_control_header'];
-    }
-
     // Save all the work we just did, so that subsequent S3fsStreamWrapper
     // constructions don't have to repeat it.
     $settings['config'] = $this->config;
@@ -227,7 +215,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $settings['torrents'] = $this->torrents;
     $settings['presignedURLs'] = $this->presignedURLs;
     $settings['saveas'] = $this->saveas;
-    $settings['cache_control_header'] = $this->cacheControlHeader;
 
     $this->constructed = TRUE;
     $this->_debug('S3fsStreamWrapper constructed.');
@@ -762,8 +749,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $upload_params['ACL'] = 'public-read';
     }
     // Set the Cache-Control header, if the user specified one.
-    if ($this->cacheControlHeader) {
-      $upload_params['CacheControl'] = $this->cacheControlHeader;
+    if (!empty($this->config['cache_control_header'])) {
+      $upload_params['CacheControl'] = $this->config['cache_control_header'];
     }
 
     // Allow other modules to alter the upload params.
