@@ -753,6 +753,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $upload_params['CacheControl'] = $this->config['cache_control_header'];
     }
 
+    if (!empty($this->config['encryption'])) {
+      $upload_params['ServerSideEncryption'] = $this->config['encryption'];
+    }
+
     // Allow other modules to alter the upload params.
     drupal_alter('s3fs_upload_params', $upload_params);
 

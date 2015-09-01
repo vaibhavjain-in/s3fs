@@ -165,6 +165,20 @@ function s3fs_settings() {
       "public, max-age=300".'
     ),
   );
+  $advanced['s3fs_encryption'] = array(
+    '#type'          => 'select',
+    '#options'       => array('' => 'None', 'AES256' => 'AES256', 'aws:kms' => 'aws:kms'),
+    '#title'         => t('Server-Side Encryption'),
+    '#default_value' => !empty($config['encryption']) ? $config['encryption'] : '',
+    '#description'   => t(
+      'If your bucket requires !ENCRYPTION, you can specify the encryption algorithm here',
+      array(
+        '!ENCRYPTION' => l('server-side encryption',
+          'http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html'
+        ),
+      )
+    ),
+  );
   $advanced['s3fs_use_https'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Always serve files from S3 via HTTPS'),
