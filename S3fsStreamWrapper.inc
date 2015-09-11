@@ -366,6 +366,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       'timeout' => 60,
       'forced_saveas' => FALSE,
       'api_args' => array('Scheme' => !empty($this->config['use_https']) ? 'https' : 'http'),
+      'custom_GET_args' => array(),
     );
 
     // Presigned URLs.
@@ -425,7 +426,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // ensure that browser caches will be bypassed upon version changes.
     $meta = $this->_read_cache($this->uri);
     if (!empty($meta['version'])) {
-      $external_url .= (strpos($external_url, '?') === FALSE ? '?' : '&') . $meta['version'];
+      $external_url = $this->_append_get_arg($external_url, $meta['version']);
     }
 
     // Torrents can only be created for publicly-accessible files:
@@ -435,9 +436,16 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       foreach ($this->torrents as $blob) {
         if (preg_match("^$blob^", $uri)) {
           // You get a torrent URL by adding a "torrent" GET arg.
-          $external_url .= (strpos($external_url, '?') === FALSE ? '?' : '&') . 'torrent';
+          $external_url = $this->_append_get_arg($external_url, 'torrent');
           break;
         }
+      }
+    }
+
+    // If another module added a 'custom_GET_args' array to the url settings, process it here.
+    if (!empty($url_settings['custom_GET_args'])) {
+      foreach ($url_settings['custom_GET_args'] as $name => $value) {
+        $external_url = $this->_append_get_arg($external_url, $name, $value);
       }
     }
 
@@ -1569,6 +1577,25 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if ($_s3fs_debug && (!$internal || $_s3fs_debug_internal)) {
       debug($msg);
     }
+  }
+
+  /**
+   * Helper function to safely append a GET argument to a given base URL.
+   *
+   * @param string $base_url
+   *   The URL onto which the GET arg will be appended.
+   * @param string $name
+   *   The name of the GET argument.
+   * @param string $value
+   *   The value of the GET argument. Optional.
+   */
+  protected static function _append_get_arg($base_url, $name, $value = NULL) {
+    $separator = strpos($base_url, '?') === FALSE ? '?' : '&';
+    $new_url = "{$base_url}{$separator}{$name}";
+    if ($value !== NULL) {
+      $new_url .= "=$value";
+    }
+    return $new_url;
   }
 }
 

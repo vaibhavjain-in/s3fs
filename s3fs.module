@@ -394,7 +394,7 @@ function _s3fs_refresh_cache($config) {
       $key = str_replace("{$config['root_folder']}/", '', $key);
     }
 
-    // Figure out the folder prefix based on the scheme.
+    // Figure out the scheme based on the folder prefix.
     if (strpos($key, 's3fs-public/') === 0) {
       // Much like the root folder, s3fs-public/ must be removed from URIs.
       $key = str_replace('s3fs-public/', '', $key);
