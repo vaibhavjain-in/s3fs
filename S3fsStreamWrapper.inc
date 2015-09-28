@@ -108,7 +108,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
    */
   public function __construct() {
     // Since S3fsStreamWrapper is always constructed with the same inputs (the
-    // file URI is not part of construction), store the constructed settings
+    // file URI is not part of construction), we store the constructed settings
     // statically. This is important for performance because Drupal
     // re-constructs stream wrappers very often.
     $settings = &drupal_static('S3fsStreamWrapper_constructed_settings');
@@ -166,7 +166,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       }
       else {
         // Due to the config form's validation, this shouldn't ever happen.
-        throw new Exception(t('The "Use CNAME" option is enabled, but no Domain Name has been set.'));
+        throw new Exception(t('The "Use a CNAME" option is enabled, but no CDN Domain Name has been set.'));
       }
     }
 

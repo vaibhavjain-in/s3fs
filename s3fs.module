@@ -143,7 +143,13 @@ function s3fs_help($path, $arg) {
   $actions = 'admin/config/media/s3fs/actions';
   $settings = 'admin/config/media/s3fs';
   if ($path == $settings) {
-    $msg = t('To perform actions, such as refreshing the metadata cache, visit the !link.', array('!link' => l(t('actions page'), $actions)));
+    $msg = t('To perform actions such as refreshing the metadata cache, visit the !link.<br>
+      Disabled fields have been hard-coded in settings.php, and cannot be changed here. See the !README for details.',
+      array(
+        '!link' => l(t('actions page'), $actions),
+        '!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'),
+      )
+    );
     return "<p>$msg</p>";
   }
   else if ($path == $actions) {
@@ -559,6 +565,9 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
  * For performance reasons, only one S3Client object will ever be created
  * within a single request.
  *
+ * @param $config Array
+ *   Array of configuration settings from which to configure the client.
+ *
  * @return Aws\S3\S3Client
  *   The fully-configured S3Client object.
  */
@@ -569,33 +578,56 @@ function _s3fs_get_amazons3_client($config) {
   // If the client hasn't been set up yet, or the config given to this call is
   // different from the previous call, (re)build the client.
   if (!isset($s3) || $static_config != $config) {
-    // For the s3fs_awssdk2_* settings, pull them normally, then override them
-    // if their equivalent awssdk2_* setting is set in settings.php.
-    $access_key = !empty($config['awssdk2_access_key']) ? $config['awssdk2_access_key'] : FALSE;
-    $access_key = variable_get('awssdk2_access_key', $access_key);
-    $secret_key = !empty($config['awssdk2_secret_key']) ? $config['awssdk2_secret_key'] : FALSE;
-    $secret_key = variable_get('awssdk2_secret_key', $secret_key);
-    $default_cache_config = !empty($config['awssdk2_default_cache_config']) ? $config['awssdk2_default_cache_config'] : FALSE;
-    $default_cache_config = variable_get('awssdk2_default_cache_config', $default_cache_config);
+    // For the SDK credentials, get the saved settings from _s3fs_get_setting(). But since $config might be populated
+    // with to-be-validated settings, its contents (if set) override the saved settings.
+    $access_key = _s3fs_get_setting('awssdk2_access_key');
+    if (isset($config['awssdk2_access_key'])) {
+      $access_key = $config['awssdk2_access_key'];
+    }
+    $secret_key = _s3fs_get_setting('awssdk2_secret_key');
+    if (isset($config['awssdk2_secret_key'])) {
+      $secret_key = $config['awssdk2_secret_key'];
+    }
+    // BACKWARD COMPATIBILITY.
+    // TODO: REMOVE IN 3.0
+    $use_instance_profile = _s3fs_get_setting('use_instance_profile');
+    if (isset($config['use_instance_profile'])) {
+      $use_instance_profile = $config['use_instance_profile'];
+    }
+    if (_s3fs_get_setting('awssdk2_use_instance_profile') || isset($config['awssdk2_use_instance_profile'])) {
+      // END BACKWARDS COMPATIBILITY
+      $use_instance_profile = _s3fs_get_setting('awssdk2_use_instance_profile');
+      if (isset($config['awssdk2_use_instance_profile'])) {
+        $use_instance_profile = $config['awssdk2_use_instance_profile'];
+      }
+    }
+    $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
+    if (isset($config['awssdk2_default_cache_config'])) {
+      $default_cache_config = $config['awssdk2_default_cache_config'];
+    }
 
-    $use_instance_profile = !empty($config['use_instance_profile']);
     $library = _s3fs_load_awssdk2_library();
     if (!$library['loaded']) {
-      throw new S3fsException(t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.'));
+      throw new S3fsException(
+        t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.')
+      );
     }
     else if (!class_exists('Aws\S3\S3Client')) {
-      throw new S3fsException(t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.'));
+      throw new S3fsException(
+        t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.')
+      );
     }
     else if (!$use_instance_profile && (!$secret_key || !$access_key)) {
-      throw new S3fsException(t("Your AWS credentials have not been properly configured. Please set them on the S3 File System !settings_page or
-        set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in your site's settings.php file.",
+      throw new S3fsException(t("Your AWS credentials have not been properly configured.
+        Please set them on the S3 File System !settings_page or
+        set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in settings.php.",
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
     else if ($use_instance_profile && empty($default_cache_config)) {
       throw new s3fsException(t("Your AWS credentials have not been properly configured.
         You are attempting to use instance profile credentials but you have not set a default cache location.
-        Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in your site's settings.php file.",
+        Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in settings.php.",
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
@@ -652,6 +684,46 @@ function _s3fs_get_config() {
     $config['root_folder'] = trim($config['root_folder'], '\/');
   }
   return $config;
+}
+
+/**
+ * Internal function to retrieve the value of a specific setting, taking overrides in settings.php into account.
+ *
+ * This function is most useful on the config form and for retrieving the awssdk2 settings.
+ * _s3fs_get_config() should be used in most other cases.
+ *
+ * @param string $setting
+ *   The short name of the setting. e.g. the "s3fs_use_cname" variable's short name is "use_cname".
+ */
+function _s3fs_get_setting($setting) {
+  // $config is the combination of all $conf settings in settings.php and all variables stored in the DB.
+  $config = _s3fs_get_config();
+  // $conf is *only* the settings that have been hard-coded in settings.php.
+  $conf = array();
+  if (file_exists(DRUPAL_ROOT . '/' . conf_path() . '/settings.php')) {
+    include DRUPAL_ROOT . '/' . conf_path() . '/settings.php';
+  }
+
+  // Get the value from _s3fs_get_config(), if it's set. This will include any overrides from settings.php.
+  $default = !empty($config[$setting]) ? $config[$setting] : '';
+
+  // The SDK settings are treated a little differently, as they have overrides in settings.php with different names.
+  if ($setting == 'awssdk2_access_key' && isset($conf['awssdk2_access_key'])) {
+    $default = $conf['awssdk2_access_key'];
+  }
+  if ($setting == 'awssdk2_secret_key' && isset($conf['awssdk2_secret_key'])) {
+    $default = $conf['awssdk2_secret_key'];
+  }
+  // This OR check is for backwards compatibility with the old s3fs_use_instance_profile variable.
+  // TODO: Remove it in 3.0.
+  if (($setting == 'awssdk2_use_instance_profile' || $setting == 'use_instance_profile') && isset($conf['awssdk2_use_instance_profile'])) {
+    $default = $conf['awssdk2_use_instance_profile'];
+  }
+  if ($setting == 'awssdk2_default_cache_config' && isset($conf['awssdk2_default_cache_config'])) {
+    $default = $conf['awssdk2_default_cache_config'];
+  }
+
+  return $default;
 }
 
 /**

@@ -53,6 +53,9 @@ Configure your setttings for S3 File System (including your S3 bucket name) at
 /admin/config/media/s3fs/settings. You can input your AWS credentials on this
 page as well, but using the $conf array is reccomended.
 
+You can also configure the rest of your S3 preferences in the $conf array. See
+the "Configuring S3FS in settings.php" section below for more info.
+
 ==================== ESSENTAL STEP! DO NOT SKIP THIS! =========================
 With the settings saved, go to /admin/config/media/s3fs/actions to refresh the
 file metadata cache. This will copy the filenames and attributes for every
@@ -160,6 +163,38 @@ Under some domain name setups, you may be able to avoid the need for proxying
 by having the same domain name as your site also point to your S3 bucket. If
 that is the case with your site, enable the "Don't rewrite CSS/JS file paths"
 option to prevent s3fs from prefixing the URLs for CSS/JS files.
+
+======================================
+== Configuring S3FS in settings.php ==
+======================================
+If you want to configure S3 File System entirely from settings.php, here are
+examples of how to configure each setting:
+
+// All the s3fs config settings start with "s3fs_"
+$conf['s3fs_bucket'] = 'YOUR BUCKET NAME';
+$conf['s3fs_region'] = 'YOUR REGION'';
+$conf['s3fs_use_cname'] = TRUE or FALSE;
+$conf['s3fs_domain'] = 'cdn.example.com';
+$conf['s3fs_use_customhost'] = TRUE or FALSE;
+$conf['s3fs_hostname'] = 'host.example.com';
+$conf['s3fs_cache_control_header'] = 'public, max-age=300';
+$conf['s3fs_encryption'] = 'aws:kms';
+$conf['s3fs_use_https'] = TRUE or FALSE;
+$conf['s3fs_ignore_cache'] = TRUE or FALSE;
+$conf['s3fs_use_s3_for_public'] = TRUE or FALSE;
+$conf['s3fs_no_rewrite_cssjs'] = TRUE or FALSE;
+$conf['s3fs_use_s3_for_private'] = TRUE or FALSE;
+$conf['s3fs_root_folder'] = 'drupal-root';
+$conf['s3fs_presigned_urls'] = "300|presigned-files/*\n60|other-presigned/*";
+$conf['s3fs_saveas'] = "videos/*\nfull-size-images/*";
+$conf['s3fs_torrents'] = "yarrr/*";
+
+// AWS Credentials use a different prefix than the rest of s3fs's settings
+$conf['awssdk2_access_key'] = 'YOUR ACCESS KEY';
+$conf['awssdk2_secret_key'] = 'YOUR SECRET KEY';
+$conf['awssdk2_use_instance_profile'] = TRUE or FALSE;
+$conf['awssdk2_default_cache_config'] = '/path/to/cache';
+
 
 ===========================================
 == Upgrading from S3 File System 7.x-1.x ==
