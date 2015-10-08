@@ -18,6 +18,7 @@ use GuzzleHttp\Psr7\CachingStream;
 use GuzzleHttp\Psr7\Stream;
 use Drupal\s3fs\S3fsException;
 use Drupal\Core\Url;
+use Drupal\image\Entity\ImageStyle;
 /**
  * The stream wrapper class.
  *
@@ -368,13 +369,17 @@ class S3fsStream implements StreamWrapperInterface {
     $path_parts = explode('/', $uri);
     if ($path_parts[0] == 'styles' && substr($uri, -4) != '.css') {
       if (!$this->_s3fs_get_object($this->uri)) {
-        // The style delivery path looks like: s3/files/styles/thumbnail/...
-        // And $path_parts looks like array('styles', 'thumbnail', ...),
-        // so just prepend s3/files/.
-        array_unshift($path_parts, 's3', 'files');
-        $relative_url = Url::fromUserInput('/'.implode('/', $path_parts));
-        return \Drupal::l($relative_url, $relative_url);
-        //return url(implode('/', $path_parts), array('absolute' => TRUE));
+
+        $args = $path_parts;
+        array_shift($args);
+        $style = array_shift($args);
+        $scheme = array_shift($args);
+        $filename = implode('/', $args);
+        $original_image = "$scheme://$filename";
+        // Load the image style configuration entity.
+        $style = ImageStyle::load($style);
+        $destination = $style->buildUri($original_image);
+        $style->createDerivative($original_image, $destination);
       }
     }
 
@@ -487,7 +492,6 @@ class S3fsStream implements StreamWrapperInterface {
         $external_url = $this->_append_get_arg($external_url, $name, $value);
       }
     }
-    dpm($external_url);
     return $external_url;
   }
 
@@ -644,7 +648,7 @@ class S3fsStream implements StreamWrapperInterface {
 
     $params = $this->params;
     $params['Body'] = $this->body;
-    $params['ContentType'] = \Drupal::service('file.mime_type.guesser')->guess($this->uri);
+    $params['ContentType'] = \Drupal::service('file.mime_type.guesser')->guess($params['Key']);
     if (file_uri_scheme($this->uri) != 'private') {
       // All non-private files uploaded to S3 must be set to public-read, or users' browsers
       // will get PermissionDenied errors, and torrent URLs won't work.
@@ -1557,5 +1561,6 @@ class S3fsStream implements StreamWrapperInterface {
     return trim($target, '\/');
   }
 }
+
 
 
