@@ -63,7 +63,6 @@ function s3fs_schema() {
     'indexes' => array(
       'timestamp' => array('timestamp'),
     ),
-    //@todo: Please set Primary Key. This is failing currently with definition of D7
     //'primary key' => array('uri'),
     // As mentioned on http://drupal.org/node/2193059, a bug in Drupal core's
     // MySQL driver prevents this setting from actually being applied. So we
@@ -98,6 +97,7 @@ function s3fs_install() {
       // MySQL doesn't directly support case sensitive UTF8 collation. Fortunately,
       // 'utf8_bin' collation works for our purposes.
       db_query("ALTER TABLE {s3fs_file} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin");
+      db_query("ALTER TABLE {s3fs_file} ADD PRIMARY KEY ({uri})");
       break;
   }
 
