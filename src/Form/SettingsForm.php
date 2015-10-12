@@ -321,7 +321,6 @@ class SettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValues();
-    //kprint_r($values);
     $this->config('s3fs.settings')
       ->set('access_key', $values['access_key'])
       ->set('secret_key', $values['secret_key'])
@@ -345,6 +344,9 @@ class SettingsForm extends ConfigFormBase {
       ->set('saveas', $values['saveas'])
       ->set('torrents', $values['torrents'])
       ->save();
+
+    drupal_set_message(t("Your settings have been saved succesfully"));
   }
+
 
 }

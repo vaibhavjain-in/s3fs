@@ -11,8 +11,17 @@ use Drupal\Core\Database\Database;
  * Implements hook_requirements().
  */
 function s3fs_requirements($phase) {
-  //@todo: Implement
-  return;
+  $requirements = [];
+  if ($phase == 'install') {
+    if (!class_exists('\Aws\S3\S3Client')) {
+      $requirements['aws_library'] = [
+        'description' => t('S3fs require AWS library.'),
+        'severity' => REQUIREMENT_ERROR,
+      ];
+    }
+  }
+
+  return $requirements;
 }
 
 
@@ -102,3 +111,4 @@ function s3fs_install() {
   }
 
 }
+

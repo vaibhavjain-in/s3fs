@@ -1526,10 +1526,10 @@ class S3fsStream implements StreamWrapperInterface {
    *   If this is TRUE, don't log $msg unless $_s3fs_debug_internal is TRUE.
    */
   protected static function _debug($msg, $internal = FALSE) {
-    //global $_s3fs_debug, $_s3fs_debug_internal;
-    //if ($_s3fs_debug && (!$internal || $_s3fs_debug_internal)) {
+    global $_s3fs_debug, $_s3fs_debug_internal;
+    if ($_s3fs_debug && (!$internal || $_s3fs_debug_internal)) {
       debug($msg);
-    //}
+    }
   }
 
   /**
@@ -1561,6 +1561,5 @@ class S3fsStream implements StreamWrapperInterface {
     return trim($target, '\/');
   }
 }
-
 
 
