@@ -142,8 +142,8 @@ class S3fsStream implements StreamWrapperInterface {
     }
 
     if (empty($this->config['bucket'])) {
-      $msg = t('Your AmazonS3 bucket name is not configured. Please visit the !settings_page.',
-        array('!settings_page' => l(t('configuration page'), '/admin/config/media/s3fs/settings')));
+      $msg = t('Your AmazonS3 bucket name is not configured. Please visit the @settings_page.',
+        array('@settings_page' => l(t('configuration page'), '/admin/config/media/s3fs/settings')));
       watchdog('S3 File System', $msg, array(), WATCHDOG_ERROR);
       throw new Exception($msg);
     }

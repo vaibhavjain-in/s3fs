@@ -110,11 +110,11 @@ function s3fs_settings() {
     '#description'   => t(
       'The region in which your bucket resides. Be careful to specify this accurately,
       as you are likely to see strange or broken behavior if the region is set wrong.<br>
-      Use of the USA GovCloud region requires !SPECIAL_PERMISSION.<br>
-      Use of the China - Beijing region requires a !CHINESE_AWS_ACCT.',
+      Use of the USA GovCloud region requires @SPECIAL_PERMISSION.<br>
+      Use of the China - Beijing region requires a @CHINESE_AWS_ACCT.',
       array(
-          '!CHINESE_AWS_ACCT' => l('亚马逊 AWS account', 'http://www.amazonaws.cn'),
-          '!SPECIAL_PERMISSION' => l('special permission', 'http://aws.amazon.com/govcloud-us/'),
+          '@CHINESE_AWS_ACCT' => l('亚马逊 AWS account', 'http://www.amazonaws.cn'),
+          '@SPECIAL_PERMISSION' => l('special permission', 'http://aws.amazon.com/govcloud-us/'),
       )
     ),
   );
@@ -204,9 +204,9 @@ function s3fs_settings() {
     '#default_value' => _s3fs_get_setting('encryption'),
     '#disabled'      => isset($conf['s3fs_encryption']),
     '#description'   => t(
-      'If your bucket requires !ENCRYPTION, you can specify the encryption algorithm here',
+      'If your bucket requires @ENCRYPTION, you can specify the encryption algorithm here',
       array(
-        '!ENCRYPTION' => l('server-side encryption',
+        '@ENCRYPTION' => l('server-side encryption',
           'http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html'
         ),
       )
@@ -248,8 +248,8 @@ function s3fs_settings() {
       <b>PLEASE NOTE:</b> If you intend to use Drupal's performance options which aggregate your CSS or Javascript
       files, or will be using any other system that writes CSS or Javascript files into your site's public:// file
       system, you must perform some additional configuration on your webserver to make those files work correctly when
-      stored in S3. Please see the section titled <i>Aggregated CSS and JS in S3</i> in the !README for details.",
-      array('!README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
+      stored in S3. Please see the section titled <i>Aggregated CSS and JS in S3</i> in the @README for details.",
+      array('@README' => l('README', drupal_get_path('module', 's3fs') . '/README.txt'))
     ),
   );
 
@@ -315,9 +315,9 @@ function s3fs_settings() {
     '#description'   => t(
       'A list of timeouts and paths that should be delivered through a presigned url.<br>
       Enter one value per line, in the format timeout|path. e.g. "60|private_files/*". Paths use regex patterns
-      as per !link. If no timeout is provided, it defaults to 60 seconds.<br>
+      as per @link. If no timeout is provided, it defaults to 60 seconds.<br>
       <b>This feature does not work when "Enable CNAME" is used.</b>',
-      array('!link' => l('preg_match', 'http://php.net/preg_match'))
+      array('@link' => l('preg_match', 'http://php.net/preg_match'))
     ),
   );
 
@@ -329,9 +329,9 @@ function s3fs_settings() {
     '#rows'          => 5,
     '#description'   => t(
       'A list of paths for which users will be forced to save the file, rather than displaying it in the browser.<br>
-      Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
+      Enter one value per line. e.g. "video/*". Paths use regex patterns as per @link.<br>
       <b>This feature does not work when "Enable CNAME" is used.</b>',
-      array('!link' => l('preg_match', 'http://php.net/preg_match'))
+      array('@link' => l('preg_match', 'http://php.net/preg_match'))
     ),
   );
 
@@ -343,9 +343,9 @@ function s3fs_settings() {
     '#rows' => 5,
     '#description' => t(
       'A list of paths that should be delivered via BitTorrent.<br>
-      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
+      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per @link.<br>
       <b>Private files and paths already set as Presigned URLs or Forced Save As cannot be delivered as torrents.</b>',
-      array('!link' => l('preg_match', 'http://php.net/preg_match'))
+      array('@link' => l('preg_match', 'http://php.net/preg_match'))
     ),
   );
 

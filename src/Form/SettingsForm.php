@@ -114,11 +114,11 @@ class SettingsForm extends ConfigFormBase {
     '#description'   => t(
       'The region in which your bucket resides. Be careful to specify this accurately,
       as you are likely to see strange or broken behavior if the region is set wrong.<br>
-      Use of the USA GovCloud region requires !SPECIAL_PERMISSION.<br>
-      Use of the China - Beijing region requires a !CHINESE_AWS_ACCT.',
+      Use of the USA GovCloud region requires @SPECIAL_PERMISSION.<br>
+      Use of the China - Beijing region requires a @CHINESE_AWS_ACCT.',
       array(
-          '!CHINESE_AWS_ACCT' => \Drupal::l('亚马逊 AWS account', Url::fromUri('http://www.amazonaws.cn')),
-          '!SPECIAL_PERMISSION' => \Drupal::l('special permission', Url::fromUri('http://aws.amazon.com/govcloud-us/')),
+          '@CHINESE_AWS_ACCT' => \Drupal::l('亚马逊 AWS account', Url::fromUri('http://www.amazonaws.cn')),
+          '@SPECIAL_PERMISSION' => \Drupal::l('special permission', Url::fromUri('http://aws.amazon.com/govcloud-us/')),
       )
     ),
   );
@@ -190,9 +190,9 @@ class SettingsForm extends ConfigFormBase {
     '#title'         => t('Server-Side Encryption'),
     '#default_value' => $config->get('encryption'),
     '#description'   => t(
-      'If your bucket requires !ENCRYPTION, you can specify the encryption algorithm here',
+      'If your bucket requires @ENCRYPTION, you can specify the encryption algorithm here',
       array(
-        '!ENCRYPTION' => \Drupal::l('server-side encryption',
+        '@ENCRYPTION' => \Drupal::l('server-side encryption',
           Url::fromUri('http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html'
         )),
       )
@@ -284,9 +284,9 @@ class SettingsForm extends ConfigFormBase {
     '#description' => t(
       'A list of timeouts and paths that should be delivered through a presigned url.<br>
       Enter one value per line, in the format timeout|path. e.g. "60|private_files/*". Paths use regex patterns
-      as per !link. If no timeout is provided, it defaults to 60 seconds.<br>
+      as per @link. If no timeout is provided, it defaults to 60 seconds.<br>
       <b>This feature does not work when "Enable CNAME" is used.</b>',
-      array('!link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
+      array('@link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
     ),
   );
   $file_specific['saveas'] = array(
@@ -296,9 +296,9 @@ class SettingsForm extends ConfigFormBase {
     '#rows' => 5,
     '#description' => t(
       'A list of paths for which users will be forced to save the file, rather than displaying it in the browser.<br>
-      Enter one value per line. e.g. "video/*". Paths use regex patterns as per !link.<br>
+      Enter one value per line. e.g. "video/*". Paths use regex patterns as per @link.<br>
       <b>This feature does not work when "Enable CNAME" is used.</b>',
-      array('!link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
+      array('@link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
     ),
   );
   $file_specific['torrents'] = array(
@@ -308,9 +308,9 @@ class SettingsForm extends ConfigFormBase {
     '#rows' => 5,
     '#description' => t(
       'A list of paths that should be delivered via BitTorrent.<br>
-      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per !link.<br>
+      Enter one value per line, e.g. "big_files/*". Paths use regex patterns as per @link.<br>
       <b>Private files and paths which are already set as Presigned URLs or Forced Save As cannot be delivered as torrents.</b>',
-      array('!link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
+      array('@link' => \Drupal::l('preg_match', Url::fromUri('http://php.net/preg_match')))
     ),
   );
     return parent::buildForm($form, $form_state);
