@@ -1313,7 +1313,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Clear this URI from the Drupal cache, to ensure the next read isn't
     // from a stale cache entry.
     $cid = S3FS_CACHE_PREFIX . $metadata['uri'];
-    cache_clear_all($cid, S3FS_CACHE_BIN);
+    $cache = \Drupal::cache('S3FS_CACHE_BIN');
+    $cache->delete($cid);
 
     $dirname = drupal_dirname($metadata['uri']);
     // If this file isn't in the root directory, also write this file's
@@ -1347,7 +1348,8 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $or->condition('uri', $u, '=');
       // Clear this URI from the Drupal cache.
       $cid = S3FS_CACHE_PREFIX . $u;
-      cache_clear_all($cid, S3FS_CACHE_BIN);
+      $cache = \Drupal::cache('S3FS_CACHE_BIN');
+      $cache->delete($cid);
     }
     $delete_query->condition($or);
     return $delete_query->execute();
