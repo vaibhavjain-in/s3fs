@@ -11,13 +11,13 @@
 function s3fs_drush_command() {
   $items = array();
   $items['s3fs-refresh-cache'] = array(
-    'description' => t('Refresh the S3 File System metadata cache.'),
+    'description' => dt('Refresh the S3 File System metadata cache.'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
     'aliases' => array('s3fs-rc'),
     'callback' => 'drush_s3fs_refresh_cache',
   );
   $items['s3fs-copy-local'] = array(
-    'description' => t('Copy local files from your public and/or private file system(s) into your S3 bucket, if s3fs is configured to take them over.'),
+    'description' => dt('Copy local files from your public and/or private file system(s) into your S3 bucket, if s3fs is configured to take them over.'),
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
     'aliases' => array('s3fs-cl'),
     'callback' => 'drush_s3fs_copy_local',
