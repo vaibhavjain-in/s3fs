@@ -319,6 +319,16 @@ class SettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    $validate = \Drupal::service('s3fs.validate')->validate($form_state->getValues(), TRUE);
+    if (is_array($validate)) {
+      $form_state->setErrorByName($validate[0], $validate[1]);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValues();
     $this->config('s3fs.settings')
