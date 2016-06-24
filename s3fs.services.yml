@@ -3,3 +3,5 @@ services:
     class: Drupal\s3fs\StreamWrapper\S3fsStream
     tags:
       - { name: stream_wrapper, scheme: s3fs }
+  stream_wrapper.s3fsstreamoverride:
+      class: Drupal\s3fs\S3fsStreamOverrideManager
