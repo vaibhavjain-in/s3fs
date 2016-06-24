@@ -7,6 +7,8 @@ use Drupal\Core\Database\SchemaObjectExistsException;
 use Aws\S3\S3Client;
 use Aws\S3\Exception;
 use Drupal\Core\File\FileSystem;
+use Drupal\Core\StreamWrapper\PublicStream;
+use Drupal\Core\StreamWrapper\PrivateStream;
 
 /**
  * Class ValidateService.
@@ -358,4 +360,81 @@ class ValidateService implements ValidateServiceInterface {
     // Empty out the file array, so it can be re-filled by the next request.
     $file_metadata_list = array();
   }
+
+  /**
+   * Copies all the local files from the specified file system into S3.
+   *
+   * @param array $config
+   *   An s3fs configuration array.
+   * @param $scheme
+   *   A variable defining which scheme (Public or Private) to copy.
+   */
+  function copyFileSystemToS3($config, $scheme) {
+    if ($scheme == 'public') {
+      $source_folder = realpath(PublicStream::basePath());
+      $target_folder = !empty($config['public_folder']) ? $config['public_folder'] . '/' : 's3fs-public/';
+    }
+    else if ($scheme == 'private') {
+      $source_folder = (PrivateStream::basePath() ? PrivateStream::basePath() : '');
+      $source_folder_real = realpath($source_folder);
+      if (empty($source_folder) || empty($source_folder_real)) {
+        drupal_set_message('Private file system base path is unknown. Unable to perform S3 copy.', 'error');
+        return;
+      }
+      $target_folder = !empty($config['private_folder']) ? $config['private_folder'] . '/' : 's3fs-private/';
+    }
+
+    if (!empty($config['root_folder'])) {
+      $target_folder = "{$config['root_folder']}/$target_folder";
+    }
+
+    // Create S3 object to move files.
+    $s3 = $this->getAmazonS3Client($config);
+
+    $file_paths = $this->dirScan($source_folder);
+    foreach ($file_paths as $path) {
+      $relative_path = str_replace($source_folder . '/', '', $path);
+      print "Copying $scheme://$relative_path into S3...\n";
+      // Finally get to make use of S3fsStreamWrapper's "S3 is actually a local
+      // file system. No really!" functionality.
+      copy($path, "s3fs://$relative_path");
+    }
+
+    drupal_set_message(t('Copied all local %scheme files to S3.', array('%scheme' => $scheme)), 'status');
+  }
+
+  /**
+   * Scans a given directory
+   *
+   * @param $dir
+   *   The directory to be scanned.
+   *
+   * @return array
+   *   Array of file paths.
+   */
+  function dirScan($dir) {
+    $output = array();
+    $files = scandir($dir);
+    foreach ($files as $file) {
+      $path = "$dir/$file";
+
+      if ($file != '.' && $file != '..') {
+        // In case they put their private root folder inside their public one,
+        // skip it. When listing the private file system contents, $path will
+        // never trigger this.
+        if ($path == realpath(PrivateStream::basePath() ? PrivateStream::basePath() : '')) {
+          continue;
+        }
+
+        if (is_dir($path)) {
+          $output = array_merge($output, $this->dirScan($path));
+        }
+        else {
+          $output[] = $path;
+        }
+      }
+    }
+    return $output;
+  }
+
 }
