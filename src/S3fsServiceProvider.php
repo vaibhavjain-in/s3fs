@@ -16,17 +16,17 @@ use Drupal\Core\DrupalKernel;
  */
 class S3fsServiceProvider implements ServiceModifierInterface {
 
-    /**
-     * Modifies existing service definitions.
-     *
-     * @param ContainerBuilder $container
-     *   The ContainerBuilder whose service definitions can be altered.
-     */
-    public function alter(ContainerBuilder $container) {
-        $cssdefinition = $container->getDefinition('asset.css.dumper');
-        $cssdefinition->setClass('Drupal\s3fs\S3fsStreamOverrideManager');
-        $jsdefinition = $container->getDefinition('asset.js.dumper');
-        $jsdefinition->setClass('Drupal\s3fs\S3fsStreamOverrideManager');
+  /**
+   * Modifies existing service definitions.
+   *
+   * @param ContainerBuilder $container
+   *   The ContainerBuilder whose service definitions can be altered.
+   */
+  public function alter(ContainerBuilder $container) {
+    $cssdefinition = $container->getDefinition('asset.css.dumper');
+    $cssdefinition->setClass('Drupal\s3fs\S3fsStreamOverrideManager');
+    $jsdefinition = $container->getDefinition('asset.js.dumper');
+    $jsdefinition->setClass('Drupal\s3fs\S3fsStreamOverrideManager');
 
-    }
+  }
 }
