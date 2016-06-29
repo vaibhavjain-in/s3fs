@@ -8,15 +8,38 @@
 namespace Drupal\s3fs\Form;
 
 use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Core\DependencyInjection\Container;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Symfony\Component\HttpFoundation\Request;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\s3fs\ValidateServiceInterface;
 
 /**
  * Defines a form that configures devel settings.
  */
 class SettingsForm extends ConfigFormBase {
+
+  /**
+   * @var \Drupal\s3fs\ValidateServiceInterface
+   */
+  protected $validateService;
+
+  /**
+   * SettingsForm constructor.
+   *
+   * @param \Drupal\s3fs\ValidateServiceInterface $validate_service
+   */
+  public function __construct(ValidateServiceInterface $validate_service) {
+    $this->validateService = $validate_service;
+  }
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('s3fs.validate')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -320,7 +343,7 @@ class SettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    $validate = \Drupal::service('s3fs.validate')->validate($form_state->getValues(), TRUE);
+    $validate = $this->validateService->validate($form_state->getValues(), TRUE);
     if (is_array($validate)) {
       $form_state->setErrorByName($validate[0], $validate[1]);
     }

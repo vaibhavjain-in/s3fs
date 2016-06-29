@@ -7,4 +7,4 @@ services:
       class: Drupal\s3fs\S3fsStreamOverrideManager
   s3fs.validate:
     class: Drupal\s3fs\ValidateService
-    arguments: ['@database']
+    arguments: ['@database', '@config.factory']

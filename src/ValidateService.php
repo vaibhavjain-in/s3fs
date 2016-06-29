@@ -4,11 +4,12 @@ namespace Drupal\s3fs;
 
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\SchemaObjectExistsException;
-use Aws\S3\S3Client;
-use Aws\S3\Exception;
 use Drupal\Core\File\FileSystem;
 use Drupal\Core\StreamWrapper\PublicStream;
 use Drupal\Core\StreamWrapper\PrivateStream;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Aws\S3\S3Client;
+use Aws\S3\Exception;
 
 /**
  * Class ValidateService.
@@ -25,10 +26,19 @@ class ValidateService implements ValidateServiceInterface {
   protected $connection;
 
   /**
-   * Constructs a new Database connection
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  public function __construct(Connection $connection) {
+  protected $config;
+
+  /**
+   * Constructs a new Database connection, and a config factory.
+   *
+   * @param \Drupal\Core\Database\Connection $connection
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   */
+  public function __construct(Connection $connection, ConfigFactoryInterface $config_factory) {
     $this->connection = $connection;
+    $this->config = $config_factory;
   }
 
   /**
@@ -45,7 +55,7 @@ class ValidateService implements ValidateServiceInterface {
     if (!empty($config['use_customhost']) && empty($config['hostname'])) {
       if ($returnError) {
         $name = 'hostname';
-        $msg = 'You must specify a Hostname to use the Custom Host feature.';
+        $msg = t('You must specify a Hostname to use the Custom Host feature.');
         return [$name, $msg];
       }
       return FALSE;
@@ -53,7 +63,7 @@ class ValidateService implements ValidateServiceInterface {
     if (!empty($config['use_cname']) && empty($config['domain'])) {
       if ($returnError) {
         $name = 'domain';
-        $msg = 'You must specify a CDN Domain Name to use the CNAME feature.';
+        $msg = t('You must specify a CDN Domain Name to use the CNAME feature.');
         return [$name, $msg];
       }
       return FALSE;
@@ -71,7 +81,7 @@ class ValidateService implements ValidateServiceInterface {
       return FALSE;
     }
 
-    // Test the connection to S3, and the bucket name.
+    // Health check the connection to S3, and the bucket name.
     try {
       // listObjects() will trigger descriptive exceptions if the credentials,
       // bucket name, or region are invalid/mismatched.
@@ -80,7 +90,7 @@ class ValidateService implements ValidateServiceInterface {
     catch (Exception\S3Exception $e) {
       if ($returnError) {
         $name = 'form';
-        $msg = 'An unexpected error occurred. ' . $e->getMessage();
+        $msg = t('An unexpected error occurred. @message', array('@message' => $e->getMessage()));
         return [$name, $msg];
       }
       return FALSE;
@@ -103,13 +113,13 @@ class ValidateService implements ValidateServiceInterface {
    * @throws \Drupal\s3fs\S3fsException
    */
   public function getAmazonS3Client($config) {
-    $s3 = drupal_static(__FUNCTION__);
-    $static_config = drupal_static(__FUNCTION__);
+    $s3 = drupal_static(__METHOD__);
+    $static_config = drupal_static(__METHOD__);
 
     // If the client hasn't been set up yet, or the config given to this call is
     // different from the previous call, (re)build the client.
     if (!isset($s3) || $static_config != $config) {
-      $savedConfig = \Drupal::config('s3fs.settings');
+      $savedConfig = $this->config->get('s3fs.settings');
       // For the SDK credentials, get the saved settings from _s3fs_get_setting(). But since $config might be populated
       // with to-be-validated settings, its contents (if set) override the saved settings.
       $access_key = $savedConfig->get['access_key'];
@@ -320,6 +330,7 @@ class ValidateService implements ValidateServiceInterface {
     $this->connection->schema()->dropTable('s3fs_file_old');
 
     // Clear every s3fs entry in the Drupal cache.
+    // @todo: This needs to be done in D8, post caching has been implemented.
     \Drupal::cache(S3FS_CACHE_BIN)->deleteAll();
     cache_clear_all(S3FS_CACHE_PREFIX, S3FS_CACHE_BIN, TRUE);
 

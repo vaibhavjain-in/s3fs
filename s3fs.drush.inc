@@ -37,14 +37,14 @@ function s3fs_drush_command() {
  */
 function drush_s3fs_refresh_cache() {
   $config = Drupal::config('s3fs.settings')->getRawData();
-  if (!\Drupal::service('s3fs.validate')->validate($config)) {
+  if (!Drupal::service('s3fs.validate')->validate($config)) {
     drupal_set_message(
       t('Unable to validate your s3fs configuration settings. Please configure S3 File System from admin/config/media/s3fs page and try again.'),
       'error'
     );
     return;
   }
-  \Drupal::service('s3fs.validate')->refreshCache($config);
+  Drupal::service('s3fs.validate')->refreshCache($config);
 }
 
 /**
@@ -52,7 +52,7 @@ function drush_s3fs_refresh_cache() {
  */
 function drush_s3fs_copy_local() {
   $config = Drupal::config('s3fs.settings')->getRawData();
-  if (!\Drupal::service('s3fs.validate')->validate($config)) {
+  if (!Drupal::service('s3fs.validate')->validate($config)) {
     drupal_set_message(
       t('Unable to validate your s3fs configuration settings. Please configure S3 File System from the admin/config/media/s3fs page and try again.'),
       'error'
@@ -66,9 +66,9 @@ function drush_s3fs_copy_local() {
     return;
   }
   if (!empty($config['use_s3_for_public'])) {
-    \Drupal::service('s3fs.validate')->copyFileSystemToS3($config, 'public');
+    Drupal::service('s3fs.validate')->copyFileSystemToS3($config, 'public');
   }
   if (!empty($config['use_s3_for_private'])) {
-    \Drupal::service('s3fs.validate')->copyFileSystemToS3($config, 'private');
+    Drupal::service('s3fs.validate')->copyFileSystemToS3($config, 'private');
   }
 }
